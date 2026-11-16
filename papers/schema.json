@@ -7,7 +7,11 @@
   "required": ["id", "name", "manufacturer", "productCode", "sheet", "layout", "verification"],
   "additionalProperties": false,
   "properties": {
-    "id": { "type": "string", "pattern": "^[a-z0-9-]+$", "description": "一意な ID（例: aone-29662）" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "一意な ID（例: aone-29662）"
+    },
     "name": { "type": "string" },
     "manufacturer": { "type": "string" },
     "productCode": { "type": "string", "description": "型番" },
@@ -17,7 +21,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "kind": { "enum": ["plain", "photo-gloss-paper", "photo-gloss-film"], "description": "表面の種類" },
+        "kind": {
+          "enum": ["plain", "photo-gloss-paper", "photo-gloss-film"],
+          "description": "表面の種類"
+        },
         "thicknessMm": { "type": ["number", "null"], "description": "総厚" }
       }
     },
@@ -27,7 +34,10 @@
       "required": ["widthMm", "heightMm", "sizeName"],
       "additionalProperties": false,
       "properties": {
-        "sizeName": { "type": "string", "description": "IPP の media 名に対応づける通称（例: hagaki）" },
+        "sizeName": {
+          "type": "string",
+          "description": "IPP の media 名に対応づける通称（例: hagaki）"
+        },
         "widthMm": { "type": "number" },
         "heightMm": { "type": "number" }
       }
@@ -46,8 +56,14 @@
         "cornerRadiusMm": { "type": ["number", "null"] },
         "firstCellLeftMm": { "type": ["number", "null"], "description": "左上コマの左端の X" },
         "firstCellTopMm": { "type": ["number", "null"], "description": "左上コマの上端の Y" },
-        "pitchXMm": { "type": ["number", "null"], "description": "コマの左端どうしの間隔（コマ幅＋隙間）" },
-        "pitchYMm": { "type": ["number", "null"], "description": "コマの上端どうしの間隔（コマ高＋隙間）" }
+        "pitchXMm": {
+          "type": ["number", "null"],
+          "description": "コマの左端どうしの間隔（コマ幅＋隙間）"
+        },
+        "pitchYMm": {
+          "type": ["number", "null"],
+          "description": "コマの上端どうしの間隔（コマ高＋隙間）"
+        }
       }
     },
     "recommendedPrint": {
@@ -55,7 +71,10 @@
       "additionalProperties": false,
       "description": "IPP に渡す推奨設定。値を決めていない項目は書かない。",
       "properties": {
-        "mediaType": { "type": "string", "description": "用紙の種類（プリンタプロファイル側で IPP の値に変換）" },
+        "mediaType": {
+          "type": "string",
+          "description": "用紙の種類（プリンタプロファイル側で IPP の値に変換）"
+        },
         "borderless": { "type": "boolean" },
         "note": { "type": "string" }
       }
@@ -76,7 +95,10 @@
           "enum": ["unmeasured", "measured", "verified"],
           "description": "unmeasured: コマ位置が未測定 / measured: 測定値あり・実機未検証 / verified: 実機で白い隙間なしを確認済み"
         },
-        "source": { "type": "string", "description": "コマ位置の出どころ（メーカーテンプレート、実測など）" },
+        "source": {
+          "type": "string",
+          "description": "コマ位置の出どころ（メーカーテンプレート、実測など）"
+        },
         "verifiedWith": { "type": "string", "description": "検証したプリンタ（verified のとき）" }
       }
     }
