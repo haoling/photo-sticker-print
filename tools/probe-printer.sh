@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # プリンタの IPP 対応状況を調べて、結果を tools/probe-out/ に保存する。
 # 使い方: tools/probe-printer.sh <プリンタのIPアドレス or ホスト名>
+# IP が分からないときは先に tools/find-printer.sh で探す。
 # 前提: docker が使えること（ipptool を含むイメージを使うので、ホストへのインストールは不要）。
 # ipptool を直接使える環境なら IPPTOOL=ipptool を指定すれば docker を使わない。
 set -euo pipefail

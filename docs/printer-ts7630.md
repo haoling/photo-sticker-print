@@ -2,7 +2,17 @@
 
 > **状態: 未調査。** 実機に届く環境で `tools/probe-printer.sh` を実行し、結果をこのファイルに転記する。
 
-## 調べ方
+## 0. プリンタの IP を探す
+
+host ネットワークの Docker コンテナで mDNS を引き、LAN 内のプリンタを一覧する（Linux の Docker 向け）。
+
+```bash
+tools/find-printer.sh
+```
+
+機種名・IP・IPP URI・UUID が表示される。見つからないときは、Docker Desktop（Mac / Windows）では mDNS が届かないので、ルーターの DHCP 一覧かプリンタの操作パネルで IP を確認する。
+
+## 1. IPP の対応状況を調べる
 
 プリンタと同じ LAN にあるマシンで実行する（Docker が使えれば `ipptool` のインストールは不要）。
 
