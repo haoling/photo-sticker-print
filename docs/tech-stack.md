@@ -11,14 +11,12 @@
 | CI             | GitHub Actions                                      | format / lint / typecheck / test / build と Docker ビルド                            |
 | 配布           | Docker（マルチステージ、`node:22-slim`）            | サーバーが `packages/web/dist` を静的配信する 1 コンテナ構成                         |
 
-## M1 以降で決めること（実機調査の結果待ち）
+## 印刷まわり（[実機調査](printer-ts7630.md)で決定）
 
-以下は [printer-ts7630.md](printer-ts7630.md) の調査結果で決める。**候補だけで、確定はしていない。**
+- **印刷データ**: TS7630 は PDF を受け付けず、`image/pwg-raster` / `image/urf` / `image/jpeg` のみ。**自前でラスタ（PWG Raster、600dpi、sRGB 8bit）を生成し、IPP の Print-Job で直接送る。** コンテナ内 CUPS は使わない。
+- **画像生成**: `sharp`（libvips）で 600dpi のページ画像を作り、生の RGB を自前の PWG Raster エンコーダ（ヘッダ 1796 バイト + 行ごとの圧縮）に渡す。
+- **IPP クライアント**: 使う操作は Print-Job、Get-Printer-Attributes、Get-Job-Attributes（と Get-Jobs）の少数。属性の組み立てを細かく制御したいので、エンコーダ / デコーダを自前で書く方向（M1 で最終判断）。
+- **PDF 生成**: `pdf-lib`。予備のダウンロード専用で、プリンタには送らない。
+- **プレビューと印刷の一致**: 編集パラメータ（トリミング位置・倍率・角度・反転・フレーム ID）を共通の型にし、サーバー側で同じ式から画像を生成する。
 
-- **画像生成**: 候補は `sharp`（libvips）。トリミング・回転・反転・塗り足し・リサイズを担当
-- **PDF 生成**: 候補は `pdf-lib`（予備のダウンロード用）
-- **IPP クライアント**: 候補は `ipp` パッケージか、IPP の送信部分だけ自前実装
-- **印刷データ変換**: TS7630 が受け付ける形式次第
-  - PDF / JPEG を受け付ける → 自前生成して IPP で直接送信
-  - PWG Raster / URF のみ → 自前でラスタ生成するか、コンテナ内 CUPS（`cups-filters`）に任せるかを比較
-- **プレビューと印刷の一致**: 編集パラメータ（トリミング位置・倍率・角度・反転・フレーム ID）を共通の型にし、サーバー側で同じ式から画像を生成する
+> 暫定: 試し刷りで画像サイズの解釈と位置を確認するまで確定しない（[printer-ts7630.md](printer-ts7630.md) の「試し刷りで確認すること」）。

@@ -4,10 +4,11 @@
 
 ## M0: 土台づくり
 
-- [ ] TS7630 の実機調査（`tools/probe-printer.sh` を用意済み。実機での実行待ち。結果は [printer-ts7630.md](printer-ts7630.md)）: IPP で Get-Printer-Attributes を投げて、受け付けるデータ形式・用紙サイズ（はがき）・用紙種類・フチなし・給紙位置の指定方法を確認する
-- [ ] 実機調査の結果から、印刷データの変換方式（コンテナ内 CUPS か、自前生成 + IPP 直接送信か）を決める
+- [x] TS7630 の実機調査（結果は [printer-ts7630.md](printer-ts7630.md)）: IPP で Get-Printer-Attributes を投げて、受け付けるデータ形式・用紙サイズ（はがき）・用紙種類・フチなし・給紙位置の指定方法を確認する
+- [x] 実機調査の結果から、印刷データの変換方式（コンテナ内 CUPS か、自前生成 + IPP 直接送信か）を決める
+  - **自前で PWG Raster を生成して IPP 直接送信**に決定（TS7630 は PDF 不可）。画像サイズの解釈は試し刷りで確定するので暫定
 - [x] 技術スタックを決める（フロントエンド、バックエンド、画像生成・PDF 生成ライブラリ、IPP クライアント）
-  - 基本構成は [tech-stack.md](tech-stack.md) で決定。画像生成・PDF・IPP クライアントは実機調査の結果で確定する
+  - [tech-stack.md](tech-stack.md) に記録。画像生成は sharp、PDF は pdf-lib、IPP は自前実装の方向（M1 で最終確認）
 - [x] リポジトリの雛形、Lint / Format / テスト、CI
 - [x] Dockerfile と docker compose の例（host ネットワーク版と通常ネットワーク版）
 - [x] 環境変数の読み込みと、未設定時のわかりやすいエラー
