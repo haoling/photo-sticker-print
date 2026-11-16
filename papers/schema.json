@@ -12,24 +12,11 @@
       "pattern": "^[a-z0-9-]+$",
       "description": "一意な ID（例: aone-29662）"
     },
-    "name": {
-      "type": "string"
-    },
-    "manufacturer": {
-      "type": "string"
-    },
-    "productCode": {
-      "type": "string",
-      "description": "型番"
-    },
-    "jan": {
-      "type": ["string", "null"],
-      "pattern": "^[0-9]{13}$"
-    },
-    "productUrl": {
-      "type": ["string", "null"],
-      "format": "uri"
-    },
+    "name": { "type": "string" },
+    "manufacturer": { "type": "string" },
+    "productCode": { "type": "string", "description": "型番" },
+    "jan": { "type": ["string", "null"], "pattern": "^[0-9]{13}$" },
+    "productUrl": { "type": ["string", "null"], "format": "uri" },
     "material": {
       "type": "object",
       "additionalProperties": false,
@@ -38,15 +25,10 @@
           "enum": ["plain", "photo-gloss-paper", "photo-gloss-film"],
           "description": "表面の種類"
         },
-        "thicknessMm": {
-          "type": ["number", "null"],
-          "description": "総厚"
-        }
+        "thicknessMm": { "type": ["number", "null"], "description": "総厚" }
       }
     },
-    "sheetsPerPack": {
-      "type": ["integer", "null"]
-    },
+    "sheetsPerPack": { "type": ["integer", "null"] },
     "sheet": {
       "type": "object",
       "required": ["widthMm", "heightMm", "sizeName"],
@@ -56,12 +38,8 @@
           "type": "string",
           "description": "IPP の media 名に対応づける通称（例: hagaki）"
         },
-        "widthMm": {
-          "type": "number"
-        },
-        "heightMm": {
-          "type": "number"
-        }
+        "widthMm": { "type": "number" },
+        "heightMm": { "type": "number" }
       }
     },
     "layout": {
@@ -70,34 +48,14 @@
       "additionalProperties": false,
       "description": "等間隔の格子。null は未測定（verification.status が measured 以前）を表す。印刷に使えるのは verification.status が measured 以降のもの。",
       "properties": {
-        "type": {
-          "const": "grid"
-        },
-        "columns": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "rows": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "cellWidthMm": {
-          "type": "number"
-        },
-        "cellHeightMm": {
-          "type": "number"
-        },
-        "cornerRadiusMm": {
-          "type": ["number", "null"]
-        },
-        "firstCellLeftMm": {
-          "type": ["number", "null"],
-          "description": "左上コマの左端の X"
-        },
-        "firstCellTopMm": {
-          "type": ["number", "null"],
-          "description": "左上コマの上端の Y"
-        },
+        "type": { "const": "grid" },
+        "columns": { "type": "integer", "minimum": 1 },
+        "rows": { "type": "integer", "minimum": 1 },
+        "cellWidthMm": { "type": "number" },
+        "cellHeightMm": { "type": "number" },
+        "cornerRadiusMm": { "type": ["number", "null"] },
+        "firstCellLeftMm": { "type": ["number", "null"], "description": "左上コマの左端の X" },
+        "firstCellTopMm": { "type": ["number", "null"], "description": "左上コマの上端の Y" },
         "pitchXMm": {
           "type": ["number", "null"],
           "description": "コマの左端どうしの間隔（コマ幅＋隙間）"
@@ -117,26 +75,19 @@
           "type": "string",
           "description": "用紙の種類（プリンタプロファイル側で IPP の値に変換）"
         },
-        "borderless": {
-          "type": "boolean"
-        },
-        "note": {
-          "type": "string"
-        },
         "mediaSource": {
           "enum": ["auto", "main", "rear"],
           "description": "給紙位置（IPP の media-source。rear は後トレイ、main はカセット）"
-        }
+        },
+        "borderless": { "type": "boolean" },
+        "note": { "type": "string" }
       }
     },
     "requires": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "borderless": {
-          "type": "boolean",
-          "description": "フチなし印刷が必要か"
-        }
+        "borderless": { "type": "boolean", "description": "フチなし印刷が必要か" }
       }
     },
     "verification": {
@@ -152,10 +103,7 @@
           "type": "string",
           "description": "コマ位置の出どころ（メーカーテンプレート、実測など）"
         },
-        "verifiedWith": {
-          "type": "string",
-          "description": "検証したプリンタ（verified のとき）"
-        }
+        "verifiedWith": { "type": "string", "description": "検証したプリンタ（verified のとき）" }
       }
     }
   }
