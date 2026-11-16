@@ -56,7 +56,18 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build
 
 `v*` タグを push すると、イメージ `ghcr.io/haoling/photo-sticker-print:<version>` と
 チャート `oci://ghcr.io/haoling/charts/photo-sticker-print` が ghcr.io に公開されます
-（`main` への push でもイメージ `:main` が push されます）。
+（ブランチの push でもイメージが push されます。チャートは `v*` タグのときだけ公開されます）。
+
+### ブランチごとのイメージタグ
+
+すべてのブランチの push で、次の 2 つのタグのイメージが ghcr.io に push されます。
+
+- `:<ブランチ名>` — ブランチ名の `/` を `-` に置換したもの（例: `claude/cool-keller-lfhmdt` → `:claude-cool-keller-lfhmdt`）
+- `:sha-<短縮SHA>` — コミットの短縮 SHA 7 桁（例: `:sha-1a2b3c4`）
+
+未リリースのブランチを ArgoCD などでデプロイするときは、チャートをその Git ブランチから読み、
+`image.tag` に上記のタグを指定します。ブランチ版のチャートは OCI には公開されません。
+fork からの PR は `GITHUB_TOKEN` に書き込み権限がないため、イメージは push されません。
 
 ```bash
 helm install psp oci://ghcr.io/haoling/charts/photo-sticker-print --version 0.1.0 \
