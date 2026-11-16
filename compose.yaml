@@ -1,0 +1,3 @@
+# `docker compose up` 用（通常ネットワーク版）。host ネットワーク版は docker/compose.host.yaml
+include:
+  - docker/compose.bridge.yaml
