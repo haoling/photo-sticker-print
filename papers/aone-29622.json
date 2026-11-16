@@ -5,24 +5,33 @@
   "manufacturer": "エーワン",
   "productCode": "29622",
   "jan": null,
-  "material": { "kind": "photo-gloss-paper", "thicknessMm": 0.18 },
+  "material": {
+    "kind": "photo-gloss-paper",
+    "thicknessMm": 0.18
+  },
   "sheetsPerPack": 5,
-  "sheet": { "sizeName": "hagaki", "widthMm": 100, "heightMm": 148 },
+  "sheet": {
+    "sizeName": "hagaki",
+    "widthMm": 100,
+    "heightMm": 148
+  },
   "layout": {
     "type": "grid",
     "columns": 2,
     "rows": 5,
     "cellWidthMm": 31,
     "cellHeightMm": 23,
-    "cornerRadiusMm": null,
-    "firstCellLeftMm": null,
-    "firstCellTopMm": null,
-    "pitchXMm": null,
-    "pitchYMm": null
+    "cornerRadiusMm": 1.5,
+    "firstCellLeftMm": 13.0,
+    "firstCellTopMm": 7.5,
+    "pitchXMm": 43.0,
+    "pitchYMm": 27.5
   },
-  "recommendedPrint": { "mediaType": "photo-gloss" },
+  "recommendedPrint": {
+    "mediaType": "photo-gloss"
+  },
   "verification": {
-    "status": "unmeasured",
-    "source": "コマ寸法はパッケージ表記。29662 と同寸だが、位置は同一とは限らないので別に測る"
+    "status": "measured",
+    "source": "コマ寸法・面数・シートサイズはパッケージ表記。コマ位置は上から撮った写真 3 枚を用紙の四隅で補正して測定し、コマ寸法 31×23mm で倍率を補正した推定値（誤差は±0.3mm 程度）。1 段目のコマだけ他の段より 0.3mm ほど大きく測れたが、原因は未確認。29662 とは別に測る。定規での確認は未実施"
   }
 }
