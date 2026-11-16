@@ -11,6 +11,7 @@ COPY packages/web/package.json packages/web/
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY packages packages
+COPY papers papers
 RUN pnpm build
 RUN pnpm --filter @photo-sticker-print/server deploy --prod --legacy /out/server
 
@@ -21,6 +22,7 @@ COPY --from=build /out/server/node_modules ./node_modules
 COPY --from=build /out/server/package.json ./package.json
 COPY --from=build /app/packages/server/dist ./dist
 COPY --from=build /app/packages/web/dist ./web
+COPY --from=build /app/papers ./papers
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
