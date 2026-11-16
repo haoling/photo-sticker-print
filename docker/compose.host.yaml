@@ -1,0 +1,12 @@
+# host ネットワーク版（Linux 向け・推奨）
+# mDNS でプリンタを探せる。Immich にはホストに公開されたポートで接続する。
+services:
+  photo-sticker-print:
+    build: ..
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      IMMICH_URL: http://localhost:2283
+      IMMICH_API_KEY: ${IMMICH_API_KEY:?IMMICH_API_KEY を設定してください}
+      PORT: ${PORT:-3000}
+      PRINTER_SCAN_SUBNET: ${PRINTER_SCAN_SUBNET:-}

@@ -1,0 +1,13 @@
+# 通常（bridge）ネットワーク版
+# mDNS は届かないので、プリンタは IP スキャンか手入力で指定する。
+services:
+  photo-sticker-print:
+    build: ..
+    ports:
+      - '${PORT:-3000}:${PORT:-3000}'
+    restart: unless-stopped
+    environment:
+      IMMICH_URL: ${IMMICH_URL:?IMMICH_URL を設定してください}
+      IMMICH_API_KEY: ${IMMICH_API_KEY:?IMMICH_API_KEY を設定してください}
+      PORT: ${PORT:-3000}
+      PRINTER_SCAN_SUBNET: ${PRINTER_SCAN_SUBNET:-}
