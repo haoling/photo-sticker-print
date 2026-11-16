@@ -6,6 +6,8 @@ image:
 
 imagePullSecrets: []
 replicaCount: 1
+# 古い ReplicaSet を残さない
+revisionHistoryLimit: 0
 
 # アプリ設定
 config:
