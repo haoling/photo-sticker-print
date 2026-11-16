@@ -52,6 +52,8 @@ export const paperSchema = z
     recommendedPrint: z
       .object({
         mediaType: z.string().min(1).optional(),
+        /** 給紙位置（IPP の media-source）。rear は後トレイ */
+        mediaSource: z.enum(['auto', 'main', 'rear']).optional(),
         borderless: z.boolean().optional(),
         note: z.string().optional(),
       })
