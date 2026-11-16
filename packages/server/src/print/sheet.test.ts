@@ -205,8 +205,14 @@ describe('sheetWarnings', () => {
     expect(w[0]).toContain('印刷できない範囲');
   });
 
-  it('推定値の用紙で塗り足しが 0.5mm 未満だと警告。写真を置かないコマは調べない', () => {
+  it('塗り足しが 0.8mm 未満だと警告（0.8mm 以上は警告なし）', () => {
     expect(sheetWarnings(p26009, 0.2, [0])[0]).toContain('推定値');
+    expect(sheetWarnings(p29622, 0.5, [4])[0]).toContain('0.8mm 未満');
+    expect(sheetWarnings(p29622, 0.8, [4])).toEqual([]);
+    expect(sheetWarnings(p29622, 1, [4])).toEqual([]);
+  });
+
+  it('写真を置かないコマは、印刷できない範囲を調べない', () => {
     expect(sheetWarnings(p29622, 3, [4, 5])).toEqual([]); // 真ん中の段は 3mm でも収まる
   });
 });

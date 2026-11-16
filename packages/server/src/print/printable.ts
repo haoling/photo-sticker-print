@@ -10,8 +10,12 @@ export const HAGAKI_BORDERED_MARGIN_MM = { left: 3.4, right: 3.4, top: 5, bottom
 
 export const MAX_BLEED_MM = 3;
 export const DEFAULT_BLEED_MM = 1;
-/** コマ位置が推定値（measured）の用紙で、これ未満の塗り足しは勧めない */
-const MIN_RECOMMENDED_BLEED_MM = 0.5;
+/**
+ * これ未満の塗り足しは勧めない。コマ位置の誤差（写真からの推定値は ±0.2〜0.5mm）に、
+ * プリンタの用紙送りの誤差が重なる。29622 の実機（TS7630、光沢スタンダード・後トレイ）では、
+ * 印刷がハーフカットより約 0.6mm ずれて、塗り足し 0.5mm では上端に約 0.1mm の白い線が出た。
+ */
+const MIN_RECOMMENDED_BLEED_MM = 0.8;
 
 /** 塗り足しを含めた範囲が、印刷できない範囲や用紙の外にかかっていないかを調べて、警告を返す。 */
 export function sheetWarnings(paper: Paper, bleedMm: number, cellIndexes: number[]): string[] {
@@ -43,9 +47,11 @@ export function sheetWarnings(paper: Paper, bleedMm: number, cellIndexes: number
       `コマ ${unprintable.join('・')} は、塗り足しがフチあり印刷で印刷できない範囲（用紙の端から約 ${m.top}mm）にかかります。端が白く抜ける可能性があります。`,
     );
   }
-  if (paper.verification.status === 'measured' && bleedMm < MIN_RECOMMENDED_BLEED_MM) {
+  if (bleedMm < MIN_RECOMMENDED_BLEED_MM) {
     warnings.push(
-      `この用紙のコマ位置は写真から測った推定値です（実機検証前）。塗り足しが ${MIN_RECOMMENDED_BLEED_MM}mm 未満だと、ずれたときに白い隙間が出やすくなります。`,
+      `塗り足しが ${MIN_RECOMMENDED_BLEED_MM}mm 未満です。プリンタの用紙送りの誤差${
+        paper.verification.status === 'measured' ? 'や、写真から測った推定値のコマ位置の誤差' : ''
+      }で、白い隙間が出やすくなります。1mm 程度を勧めます。`,
     );
   }
   return warnings;
