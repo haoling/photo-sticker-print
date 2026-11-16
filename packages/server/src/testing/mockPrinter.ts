@@ -26,6 +26,12 @@ export interface MockPrinter {
   failWith: number | null;
   /** 設定すると、HTTP のステータスで失敗させる */
   httpStatus: number | null;
+  /** 本物のプリンタの癖: 要求されていなくても、先に HTTP の 100 Continue を返す（fetch は不正な応答として切断する） */
+  send100Continue: boolean;
+  /** 本物のプリンタの癖: Content-Length なしの分割（chunked）の応答を返す */
+  chunked: boolean;
+  /** 設定すると、IPP でない本文を返す */
+  garbageBody: boolean;
   close(): Promise<void>;
 }
 
@@ -66,6 +72,9 @@ export async function startMockPrinter(): Promise<MockPrinter> {
     printerStateReasons: ['none'],
     failWith: null,
     httpStatus: null,
+    send100Continue: false,
+    chunked: false,
+    garbageBody: false,
     close: () => new Promise((resolve) => server.close(() => resolve())),
   };
   let polls = 0;
@@ -153,7 +162,15 @@ export async function startMockPrinter(): Promise<MockPrinter> {
     } else {
       out = respond(0x0501, decoded.requestId, []); // operation-not-supported
     }
-    res.writeHead(200, { 'content-type': 'application/ipp' }).end(out);
+    if (printer.send100Continue) res.writeContinue();
+    if (printer.garbageBody) out = Buffer.from('<html>not ipp</html>');
+    if (printer.chunked) {
+      res.writeHead(200, { 'content-type': 'application/ipp' });
+      res.write(out.subarray(0, 10));
+      res.end(out.subarray(10));
+    } else {
+      res.writeHead(200, { 'content-type': 'application/ipp' }).end(out);
+    }
   });
 
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

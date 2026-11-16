@@ -34,6 +34,8 @@
 
 IPP のエンコード・デコードと PWG Raster は、依存なしで自前で実装している（`packages/server/src/ipp/`）。使う操作が少なく、属性の組み立てを細かく制御したいため。
 
+通信は、`fetch` ではなく **`node:http`** を使う（寛容な HTTP パーサー）。プリンタの組み込み HTTP サーバーは、要求していないのに `100 Continue` を先に返すことがあり、`fetch`（undici）はそれを不正な応答として「bad response」で切断してしまう（Canon TS7630 で実際に起きた）。
+
 ## 送り先の制限
 
 このアプリには認証がなく、「サーバーから指定したホストへ HTTP を送る」ことになる。外のサイトへ向けられないよう、送り先は **LAN 内のアドレスだけ**を受け付ける。
@@ -45,6 +47,18 @@ IPP のエンコード・デコードと PWG Raster は、依存なしで自前�
 ## 用紙の種類（media-type）
 
 用紙定義の `recommendedPrint.mediaType`（`plain`、`photo-gloss`）を、IPP の `media-type` に対応づけている（`plain` → `stationery`、`photo-gloss` → `photographic`）。**これは暫定の対応**で、プリンタが受け付ける値は機種ごとに違う（TS7630 は `com.canon-mtglossy`、`com.canon-mtmat`、`com.canon-mthagakiglossy` など。[docs/printer-ts7630.md](printer-ts7630.md)）。「接続を確認」で出る一覧から、画面で選び直せる。
+
+## つながらないとき
+
+画面に出るエラーの原因の目安。
+
+| 表示 | 原因の目安 |
+| --- | --- |
+| `ECONNREFUSED`（接続を拒否） | ポートが違う、またはプリンタの IPP が無効。ポートは 631、パスは `/ipp/print` が既定 |
+| `EHOSTUNREACH` / `ENETUNREACH`（届かない） | 別のネットワークにいる、プリンタの電源が切れている。Docker の通常ネットワークから届かないときは host ネットワーク版で試す |
+| 「応答がありません」 | プリンタが省電力で、起きるのに時間がかかっている。もう一度試す |
+| 「IPP として読めません」 | ポートやパスが違う（Web 管理画面のポートなど）。`tools/find-printer.sh` で出る IPP URI のポート・パスを使う |
+| 「LAN 内のアドレスではありません」 | このアプリが拒否している（[送り先の制限](#送り先の制限)） |
 
 ## 実機で確認すること
 

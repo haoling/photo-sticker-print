@@ -139,6 +139,42 @@ describe('エラー', () => {
   });
 });
 
+describe('本物のプリンタの HTTP の癖', () => {
+  it('要求していない 100 Continue が先に来ても、応答を読める（fetch は「bad response」で失敗する）', async () => {
+    mock.send100Continue = true;
+    expect((await getPrinterInfo(target())).makeAndModel).toBe('Canon TS7630 series');
+    // 大きな文書を送る Print-Job でも同じ
+    const job = await printJob(target(), {
+      jobName: 'x',
+      documentFormat: 'image/pwg-raster',
+      data: Buffer.alloc(300_000, 7),
+      jobAttributes: [],
+    });
+    expect(job.jobId).toBe(100);
+    expect(mock.documents[0]).toHaveLength(300_000);
+  });
+
+  it('Content-Length のない分割（chunked）の応答も読める', async () => {
+    mock.chunked = true;
+    expect((await getPrinterInfo(target())).supportsHagaki).toBe(true);
+  });
+
+  it('IPP でない本文が返ったとき（ポートやパスの間違い）は、そう伝える', async () => {
+    mock.garbageBody = true;
+    const err = await getPrinterInfo(target()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(IppError);
+    expect((err as IppError).message).toContain('IPP として読めません');
+    expect((err as IppError).message).toContain('ポートやパス');
+  });
+
+  it('接続を拒否されたときは、原因（ポートの違いなど）を伝える', async () => {
+    const closed = { host: '127.0.0.1', port: 1, path: '/ipp/print' };
+    const err = await getPrinterInfo(closed, { timeoutMs: 3000 }).catch((e: unknown) => e);
+    expect((err as IppError).message).toContain('ECONNREFUSED');
+    expect((err as IppError).message).toContain('ポートが違う');
+  });
+});
+
 describe('parsePrinterTarget', () => {
   it('LAN 内の IP・ホスト名を受け付け、既定のポートとパスを補う', () => {
     expect(parsePrinterTarget({ host: '192.168.1.20' })).toEqual({

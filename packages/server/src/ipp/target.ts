@@ -64,6 +64,5 @@ export function parsePrinterTarget(input: {
   return { host, port, path };
 }
 
-export const httpUrl = (t: PrinterTarget) => `http://${t.host}:${t.port}${t.path}`;
 /** IPP の printer-uri 属性に入れる URI */
 export const ippUri = (t: PrinterTarget) => `ipp://${t.host}:${t.port}${t.path}`;

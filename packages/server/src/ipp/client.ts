@@ -1,3 +1,4 @@
+import { request } from 'node:http';
 import {
   decodeResponse,
   encodeRequest,
@@ -10,7 +11,7 @@ import {
   type IppResponse,
   type IppValue,
 } from './codec.js';
-import { httpUrl, ippUri, type PrinterTarget } from './target.js';
+import { ippUri, type PrinterTarget } from './target.js';
 
 export class IppError extends Error {
   constructor(
@@ -24,8 +25,6 @@ export class IppError extends Error {
 
 export interface IppClientOptions {
   timeoutMs?: number;
-  /** 差し替え用（テスト） */
-  fetchImpl?: typeof fetch;
 }
 
 const STATUS_NAMES: Record<number, string> = {
@@ -57,36 +56,106 @@ const STATUS_NAMES: Record<number, string> = {
 
 let requestCounter = 1;
 
-/** 1 回の IPP 要求を送って、応答を読む。失敗（HTTP エラー・IPP のエラーステータス）は IppError。 */
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+
+/** 通信のエラーを、画面で原因が分かる日本語にする（コードは調べるときのために残す） */
+function describeNetworkError(e: Error & { code?: string }, timeoutMs: number): string {
+  const code = e.code ?? '';
+  if (e.name === 'TimeoutError' || e.name === 'AbortError' || code === 'ETIMEDOUT') {
+    return `${timeoutMs / 1000} 秒以内に応答がありません`;
+  }
+  const hint: Record<string, string> = {
+    ECONNREFUSED: '接続を拒否されました。ポートが違うか、プリンタの IPP が無効です',
+    EHOSTUNREACH:
+      'プリンタに届きません。同じネットワークにあるか、電源が入っているか確かめてください',
+    ENETUNREACH: 'そのネットワークに届きません',
+    ENOTFOUND: 'ホスト名を解決できません。IP アドレスで試してください',
+    ECONNRESET: '接続が途中で切れました',
+    EPIPE: '接続が途中で切れました',
+  };
+  if (hint[code]) return `${hint[code]}（${code}）`;
+  if (code.startsWith('HPE_')) return `HTTP の応答を読めません（${code}: ${e.message}）`;
+  return code ? `${e.message}（${code}）` : e.message;
+}
+
+/**
+ * HTTP で IPP の要求を 1 回送って、応答の本文を返す。
+ * fetch ではなく node:http を使う。プリンタの HTTP サーバーは、要求していないのに
+ * 100 Continue を先に返すことがあり、fetch（undici）はそれを不正な応答として切断してしまうため。
+ * 多少規格に外れた応答でも読めるよう、パーサーは寛容にする。
+ */
+function httpPost(
+  target: PrinterTarget,
+  body: Buffer,
+  timeoutMs: number,
+): Promise<{ status: number; body: Buffer }> {
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        host: target.host,
+        port: target.port,
+        path: target.path,
+        method: 'POST',
+        headers: {
+          'content-type': 'application/ipp',
+          'content-length': body.length,
+          connection: 'close',
+        },
+        agent: false,
+        insecureHTTPParser: true,
+        signal: AbortSignal.timeout(timeoutMs),
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        res.on('data', (c: Buffer) => {
+          size += c.length;
+          if (size > MAX_RESPONSE_BYTES) {
+            req.destroy(new Error('プリンタの応答が大きすぎます'));
+            return;
+          }
+          chunks.push(c);
+        });
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks) }));
+        res.on('error', reject);
+      },
+    );
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
+/** 1 回の IPP 要求を送って、応答を読む。失敗（通信のエラー・HTTP エラー・IPP のエラーステータス）は IppError。 */
 export async function ippCall(
   target: PrinterTarget,
   req: Omit<IppRequest, 'requestId'>,
-  { timeoutMs = 30_000, fetchImpl = fetch }: IppClientOptions = {},
+  { timeoutMs = 30_000 }: IppClientOptions = {},
 ): Promise<IppResponse> {
-  const body = encodeRequest({ ...req, requestId: requestCounter++ });
-  let res: Response;
+  const message = encodeRequest({ ...req, requestId: requestCounter++ });
+  let res: { status: number; body: Buffer };
   try {
-    res = await fetchImpl(httpUrl(target), {
-      method: 'POST',
-      headers: { 'content-type': 'application/ipp' },
-      body: body as unknown as BodyInit, // Buffer をそのまま送る（コピーしない）
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    res = await httpPost(target, message, timeoutMs);
   } catch (e) {
-    const err = e as Error;
-    const detail =
-      err.name === 'TimeoutError'
-        ? `${timeoutMs / 1000} 秒以内に応答がありません`
-        : ((err.cause as Error | undefined)?.message ?? err.message);
-    throw new IppError(`プリンタ ${target.host} に接続できません（${detail}）`);
+    throw new IppError(
+      `プリンタ ${target.host} に接続できません（${describeNetworkError(e as Error, timeoutMs)}）`,
+    );
   }
-  if (!res.ok) throw new IppError(`プリンタが HTTP ${res.status} を返しました`);
-  const decoded = decodeResponse(Buffer.from(await res.arrayBuffer()));
+  if (res.status < 200 || res.status >= 300) {
+    throw new IppError(`プリンタが HTTP ${res.status} を返しました`);
+  }
+  let decoded: IppResponse;
+  try {
+    decoded = decodeResponse(res.body);
+  } catch (e) {
+    throw new IppError(
+      `プリンタの応答を IPP として読めません（${(e as Error).message}）。ポートやパスが違うかもしれません`,
+    );
+  }
   if (!isOk(decoded.status)) {
-    const message = findAttributes(decoded, IPP_GROUP.operation)['status-message']?.[0];
+    const text = findAttributes(decoded, IPP_GROUP.operation)['status-message']?.[0];
     const name = STATUS_NAMES[decoded.status] ?? `0x${decoded.status.toString(16)}`;
     throw new IppError(
-      `プリンタがエラーを返しました: ${name}${typeof message === 'string' && message ? `（${message}）` : ''}`,
+      `プリンタがエラーを返しました: ${name}${typeof text === 'string' && text ? `（${text}）` : ''}`,
       decoded.status,
     );
   }
