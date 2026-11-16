@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseState } from './storage';
+import { parsePrinterState, parseState } from './storage';
 import { buildTestPrintUrl, parseOffset } from './testPrintUrl';
 
 describe('buildTestPrintUrl', () => {
@@ -56,5 +56,35 @@ describe('parseState', () => {
       }),
     );
     expect(s).toEqual({ paperId: null, color: '#000000', offsets: { b: { x: 1, y: 2 } } });
+  });
+});
+
+describe('parsePrinterState', () => {
+  it('保存した内容を読める。壊れた値・不正な項目は落とす', () => {
+    expect(
+      parsePrinterState(
+        JSON.stringify({
+          host: '192.168.1.20',
+          port: '631',
+          path: '/ipp/print',
+          overrides: {
+            a: { mediaType: 'photographic', mediaSource: 'rear', borderless: false, quality: 5 },
+            b: { mediaType: '', quality: 9, borderless: 'x' },
+            c: 'bad',
+          },
+        }),
+      ),
+    ).toEqual({
+      host: '192.168.1.20',
+      port: '631',
+      path: '/ipp/print',
+      overrides: {
+        a: { mediaType: 'photographic', mediaSource: 'rear', borderless: false, quality: 5 },
+        b: {},
+      },
+    });
+    expect(parsePrinterState(null).host).toBe('');
+    expect(parsePrinterState('{ not json').overrides).toEqual({});
+    expect(parsePrinterState('[]').host).toBe('');
   });
 });

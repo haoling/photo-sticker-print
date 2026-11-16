@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchPapers, type PaperSummary } from './api';
+import { fetchPapers, printTestPage, type PaperSummary } from './api';
+import { PrintPanel } from './PrintPanel';
 import { loadState, saveState, type TestPrintState } from './storage';
 import { buildTestPrintUrl, DEFAULT_COLOR, OFFSET_LIMIT_MM, parseOffset } from './testPrintUrl';
 
@@ -178,6 +179,24 @@ export function TestPrintPage() {
             </a>
           </div>
         )}
+
+        <PrintPanel
+          paper={paper}
+          blockedReason={
+            !paper
+              ? '用紙を選んでください'
+              : x === null || y === null
+                ? '位置補正を直してください'
+                : null
+          }
+          send={(printer, options) =>
+            printTestPage(
+              { paperId: paper!.id, offsetX: x ?? 0, offsetY: y ?? 0, color },
+              printer,
+              options,
+            )
+          }
+        />
 
         <details className="howto">
           <summary>刷り方</summary>

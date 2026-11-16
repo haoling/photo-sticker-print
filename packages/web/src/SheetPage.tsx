@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchPapers, renderSheet, type PaperSummary, type SheetFormat } from './api';
+import { fetchPapers, printSheet, renderSheet, type PaperSummary, type SheetFormat } from './api';
+import { PrintPanel } from './PrintPanel';
 import {
   assignInOrder,
   bleedBox,
@@ -295,6 +296,30 @@ export function SheetPage() {
             {actionError}
           </p>
         )}
+
+        <PrintPanel
+          paper={paper}
+          blockedReason={
+            !ready
+              ? '写真を割り付けてください'
+              : !fresh
+                ? '先に「最終確認の画像を作る」で、今の設定と写真を確認してください'
+                : null
+          }
+          send={(printer, options) =>
+            printSheet(
+              {
+                paperId: paper!.id,
+                bleedMm: bleed!,
+                offsetX: offset.x,
+                offsetY: offset.y,
+                photos,
+              },
+              printer,
+              options,
+            )
+          }
+        />
 
         <details className="howto">
           <summary>刷り方</summary>
