@@ -83,7 +83,7 @@ export function buildTestPrintSvg(paper: Paper, opts: TestPrintOptions = {}): st
  * PNG に解像度（pHYs チャンク）を書き込む。sharp の withMetadata は
  * グレースケールを RGB に戻してしまうので使わず、IHDR の直後へ自前で挿入する。
  */
-function withPngDensity(png: Buffer, dpi: number): Buffer {
+export function withPngDensity(png: Buffer, dpi: number): Buffer {
   const ihdrEnd = 8 + 4 + 4 + 13 + 4; // シグネチャ + IHDR チャンク（長さ・種別・本体・CRC）
   const data = Buffer.alloc(9);
   const pxPerMeter = Math.round(dpi / 0.0254);

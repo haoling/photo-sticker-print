@@ -9,6 +9,7 @@ Immich などのクラウドフォトストレージから写真を選び、エ�
 
 - [要件](docs/requirements.md)
 - [マイルストーン](docs/milestones.md)
+- [写真の割り付けと印刷](docs/sheet-print.md)
 - [テスト印刷の使い方](docs/test-print.md)
 - [用紙定義](papers/)（JSON。コマ位置は未測定のものがあり、`verification.status` で区別）
 - [技術スタック](docs/tech-stack.md)

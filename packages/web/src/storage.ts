@@ -54,3 +54,25 @@ export function saveState(state: TestPrintState): void {
     /* 保存できなくても画面は使える */
   }
 }
+
+const BLEED_KEY = 'photo-sticker-print:bleed';
+
+/** 塗り足し（mm）の前回の値。無い・不正なときは null */
+export function loadBleed(): number | null {
+  try {
+    const v = Number(localStorage.getItem(BLEED_KEY));
+    return Number.isFinite(v) && v >= 0 && v <= 3 && localStorage.getItem(BLEED_KEY) !== null
+      ? v
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveBleed(mm: number): void {
+  try {
+    localStorage.setItem(BLEED_KEY, String(mm));
+  } catch {
+    /* 保存できなくても画面は使える */
+  }
+}

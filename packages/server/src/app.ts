@@ -3,7 +3,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import type { Config } from './config.js';
 import { z } from 'zod';
-import { isPrintable, type Paper } from './papers/index.js';
+import { registerSheetRoutes } from './sheetRoutes.js';
+import { computeCells, isPrintable, type Paper } from './papers/index.js';
 import {
   buildTestPrintSvg,
   DEFAULT_LINE_COLOR,
@@ -36,8 +37,15 @@ export async function buildApp({
   app.get('/api/info', async () => ({ name: 'photo-sticker-print', version: '0.0.0' }));
 
   app.get('/api/papers', async () => ({
-    papers: papers.map((paper) => ({ ...paper, printable: isPrintable(paper) })),
+    papers: papers.map((paper) => ({
+      ...paper,
+      printable: isPrintable(paper),
+      // コマの位置とサイズ（mm）。画面はこれをそのまま使う（計算を二重に持たない）
+      cells: isPrintable(paper) ? computeCells(paper) : null,
+    })),
   }));
+
+  await registerSheetRoutes(app, papers);
 
   // テスト印刷（コマの枠線だけ）。シール用紙に重ねて透かし、位置のズレを測る。
   const testPrintQuery = z.object({
