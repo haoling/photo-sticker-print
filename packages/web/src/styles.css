@@ -373,3 +373,19 @@ button:disabled,
   margin: 4px 0;
   font-size: 0.9rem;
 }
+
+/* 写真を、サーバーの印刷画像と同じ切り抜きで置く（previewLayout）。回転する写真のため、入れ物はサイズコンテナ */
+.sheet .bleed .photo-frame {
+  position: absolute;
+  container-type: size;
+}
+.sheet .bleed .photo-frame img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  object-fit: fill;
+}
+.sheet .bleed img.cover {
+  object-fit: cover;
+}

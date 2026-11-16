@@ -84,18 +84,32 @@ export function buildTestPrintSvg(paper: Paper, opts: TestPrintOptions = {}): st
  * グレースケールを RGB に戻してしまうので使わず、IHDR の直後へ自前で挿入する。
  */
 export function withPngDensity(png: Buffer, dpi: number): Buffer {
-  const ihdrEnd = 8 + 4 + 4 + 13 + 4; // シグネチャ + IHDR チャンク（長さ・種別・本体・CRC）
+  const SIGNATURE = 8;
   const data = Buffer.alloc(9);
   const pxPerMeter = Math.round(dpi / 0.0254);
   data.writeUInt32BE(pxPerMeter, 0);
   data.writeUInt32BE(pxPerMeter, 4);
   data.writeUInt8(1, 8); // 単位: メートル
   const body = Buffer.concat([Buffer.from('pHYs'), data]);
-  const chunk = Buffer.alloc(4 + body.length + 4);
-  chunk.writeUInt32BE(data.length, 0);
-  body.copy(chunk, 4);
-  chunk.writeUInt32BE(crc32(body), 4 + body.length);
-  return Buffer.concat([png.subarray(0, ihdrEnd), chunk, png.subarray(ihdrEnd)]);
+  const phys = Buffer.alloc(4 + body.length + 4);
+  phys.writeUInt32BE(data.length, 0);
+  body.copy(phys, 4);
+  phys.writeUInt32BE(crc32(body), 4 + body.length);
+
+  // sharp は 72dpi の pHYs を出力するので、pHYs は 1 つしか持てない（PNG の仕様）ため、取り除く。
+  // 新しい pHYs は、IHDR の直後に入れる。
+  const out: Buffer[] = [png.subarray(0, SIGNATURE)];
+  let pos = SIGNATURE;
+  while (pos < png.length) {
+    const length = png.readUInt32BE(pos);
+    const type = png.toString('latin1', pos + 4, pos + 8);
+    const chunk = png.subarray(pos, pos + 12 + length); // 長さ + 種類 + 本体 + CRC
+    pos += 12 + length;
+    if (type === 'pHYs') continue;
+    out.push(chunk);
+    if (type === 'IHDR') out.push(phys);
+  }
+  return Buffer.concat(out);
 }
 
 /** 白地に枠線の PNG。黒なら 8bit グレースケール、それ以外の色は RGB。dpi をメタデータにも入れる。 */

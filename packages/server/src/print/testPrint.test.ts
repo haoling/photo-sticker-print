@@ -128,3 +128,21 @@ describe('renderTestPrintPdf', () => {
     expect(height).toBeCloseTo((148 / 25.4) * 72, 2);
   });
 });
+
+describe('PNG の解像度（pHYs）', () => {
+  const chunkTypes = (png: Buffer) => {
+    const out: string[] = [];
+    for (let p = 8; p < png.length; p += 12 + png.readUInt32BE(p))
+      out.push(png.toString('latin1', p + 4, p + 8));
+    return out;
+  };
+
+  it('pHYs は 1 つだけで、IHDR の直後にあり、600dpi（23622 画素/m）を持つ', async () => {
+    const png = await renderTestPrintPng(p26009);
+    const types = chunkTypes(png);
+    expect(types.filter((t) => t === 'pHYs')).toHaveLength(1);
+    expect(types[0]).toBe('IHDR');
+    expect(types[1]).toBe('pHYs');
+    expect(png.readUInt32BE(8 + 12 + 13 + 4 + 8)).toBe(23622);
+  });
+});

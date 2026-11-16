@@ -3,7 +3,14 @@ import { PDFDocument } from 'pdf-lib';
 import sharp from 'sharp';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPapers, type Paper } from '../papers/index.js';
-import { renderSheetPdf, renderSheetPng, SheetImageError, sheetWarnings } from './index.js';
+import {
+  DEFAULT_EDIT,
+  renderSheetPdf,
+  renderSheetPng,
+  SheetImageError,
+  sheetWarnings,
+  type CellEdit,
+} from './index.js';
 
 const DPI = 300;
 const PX_PER_MM = DPI / 25.4;
@@ -178,6 +185,90 @@ describe('renderSheetPng', () => {
     expect(err).toBeInstanceOf(SheetImageError);
     expect((err as SheetImageError).cellIndex).toBe(3);
     expect((err as SheetImageError).message).toContain('コマ 4');
+  });
+});
+
+/** 4 つの角が別の色（左上 赤・右上 緑・左下 青・右下 黄）の写真 */
+const quadrants = (w: number, h: number) => {
+  const q = (x: number, y: number, c: string) =>
+    `<rect x="${x}" y="${y}" width="${w / 2}" height="${h / 2}" fill="${c}"/>`;
+  return sharp(
+    Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${q(0, 0, '#ff0000')}${q(w / 2, 0, '#00ff00')}${q(0, h / 2, '#0000ff')}${q(w / 2, h / 2, '#ffff00')}</svg>`,
+    ),
+  )
+    .png()
+    .toBuffer();
+};
+const GREEN = [0, 255, 0];
+const YELLOW = [255, 255, 0];
+
+describe('renderSheetPng の編集パラメータ', () => {
+  const render = async (image: Buffer, edit: CellEdit) =>
+    pixels(await renderSheetPng(p29622, [{ cellIndex: 0, image, edit }], { bleedMm: 0, dpi: DPI }));
+  const cx = CELL0.x + CELL0.w / 2;
+  const cy = CELL0.y + CELL0.h / 2;
+
+  it('2 倍に拡大して左上に寄せると、コマ全体が左上の角（赤）になる', async () => {
+    const at = await render(await quadrants(800, 400), {
+      ...DEFAULT_EDIT,
+      zoom: 2,
+      focusX: 0,
+      focusY: 0,
+    });
+    const offsets: [number, number][] = [
+      [-14, -10],
+      [14, -10],
+      [-14, 10],
+      [14, 10],
+      [0, 0],
+    ];
+    for (const [dx, dy] of offsets) {
+      expect(near(at(cx + dx, cy + dy), RED), `${dx},${dy}`).toBe(true);
+    }
+  });
+
+  it('既定の編集（拡大 1）では、4 つの角の色がコマの四隅に出る', async () => {
+    const at = await render(await quadrants(800, 400), DEFAULT_EDIT);
+    expect(near(at(cx - 10, cy - 8), RED)).toBe(true);
+    expect(near(at(cx + 10, cy - 8), GREEN)).toBe(true);
+    expect(near(at(cx - 10, cy + 8), BLUE)).toBe(true);
+    expect(near(at(cx + 10, cy + 8), YELLOW)).toBe(true);
+  });
+
+  it('左右反転: 左と右が入れ替わる', async () => {
+    const at = await render(await quadrants(800, 400), { ...DEFAULT_EDIT, flipH: true });
+    expect(near(at(cx - 10, cy - 8), GREEN)).toBe(true);
+    expect(near(at(cx + 10, cy - 8), RED)).toBe(true);
+    expect(near(at(cx - 10, cy + 8), YELLOW)).toBe(true);
+  });
+
+  it('90° 回転（時計回り）: 左上の赤は右上へ、左下の青は左上へ動く', async () => {
+    const at = await render(await quadrants(800, 800), { ...DEFAULT_EDIT, rotation: 90 });
+    expect(near(at(cx - 10, cy - 8), BLUE)).toBe(true);
+    expect(near(at(cx + 10, cy - 8), RED)).toBe(true);
+    expect(near(at(cx + 10, cy + 8), GREEN)).toBe(true);
+    expect(near(at(cx - 10, cy + 8), YELLOW)).toBe(true);
+  });
+
+  it('回転のあとに左右反転する（90° 回転 + 反転: 青↔赤が入れ替わる）', async () => {
+    const at = await render(await quadrants(800, 800), {
+      ...DEFAULT_EDIT,
+      rotation: 90,
+      flipH: true,
+    });
+    expect(near(at(cx - 10, cy - 8), RED)).toBe(true);
+    expect(near(at(cx + 10, cy - 8), BLUE)).toBe(true);
+  });
+
+  it('EXIF の向きを反映したあとの写真に、編集を適用する', async () => {
+    // 向き 6（時計回りに 90°）の 800×400 は、表示すると 400×800。その左上は、元の画像の左下（青）
+    const img = await sharp(await quadrants(800, 400))
+      .jpeg({ quality: 100 })
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    const at = await render(img, { ...DEFAULT_EDIT, zoom: 2, focusX: 0, focusY: 0 });
+    expect(near(at(cx, cy), BLUE, 12)).toBe(true);
   });
 });
 

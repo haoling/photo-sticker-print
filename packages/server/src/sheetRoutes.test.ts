@@ -63,6 +63,24 @@ describe('POST /api/sheet/render', () => {
     expect(warningsOf(res)[0]).toContain('コマ 10');
   });
 
+  it('edit-<コマ番号> の編集パラメータを受け付ける。範囲外・JSON でない・写真のないコマは 400', async () => {
+    const ok = await post([
+      field('paperId', 'aone-29622'),
+      file(0),
+      field('edit-0', JSON.stringify({ zoom: 2, focusX: 0, focusY: 0, rotation: 90, flipH: true })),
+    ]);
+    expect(ok.statusCode).toBe(200);
+    const cases: [string, Part[]][] = [
+      ['範囲外の拡大', [field('paperId', 'aone-29622'), file(0), field('edit-0', '{"zoom":9}')]],
+      ['不正な回転', [field('paperId', 'aone-29622'), file(0), field('edit-0', '{"rotation":45}')]],
+      ['JSON でない', [field('paperId', 'aone-29622'), file(0), field('edit-0', 'zoom=2')]],
+      ['写真のないコマ', [field('paperId', 'aone-29622'), file(0), field('edit-3', '{"zoom":2}')]],
+    ];
+    for (const [label, parts] of cases) {
+      expect((await post(parts)).statusCode, label).toBe(400);
+    }
+  });
+
   it('入力の誤りは 400', async () => {
     const cases: [string, Part[]][] = [
       ['用紙の指定なし', [file(0)]],

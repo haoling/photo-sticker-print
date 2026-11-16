@@ -1,3 +1,5 @@
+import { isDefaultEdit, type CellEdit } from './cellEdit';
+
 /** コマの位置とサイズ（mm）。サーバーが用紙定義から計算して返す */
 export interface Cell {
   index: number;
@@ -49,6 +51,8 @@ export interface SheetRequest {
   offsetY: number;
   /** コマの番号（0 始まり）と、そのコマに入れる写真 */
   photos: [cellIndex: number, file: File][];
+  /** コマごとの編集（拡大・位置・回転・左右反転）。既定のコマは省略できる */
+  edits?: Record<number, CellEdit>;
 }
 
 async function readError(res: Response): Promise<Error> {
@@ -67,7 +71,11 @@ function sheetForm(req: SheetRequest): FormData {
   form.set('bleedMm', String(req.bleedMm));
   form.set('offsetX', String(req.offsetX));
   form.set('offsetY', String(req.offsetY));
-  for (const [cellIndex, file] of req.photos) form.set(`cell-${cellIndex}`, file, file.name);
+  for (const [cellIndex, file] of req.photos) {
+    form.set(`cell-${cellIndex}`, file, file.name);
+    const edit = req.edits?.[cellIndex];
+    if (edit && !isDefaultEdit(edit)) form.set(`edit-${cellIndex}`, JSON.stringify(edit));
+  }
   return form;
 }
 

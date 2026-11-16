@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_EDIT, previewLayout, type CellEdit } from './cellEdit';
 import { fetchPapers, printSheet, renderSheet, type PaperSummary, type SheetFormat } from './api';
 import { PrintPanel } from './PrintPanel';
 import {
@@ -14,9 +15,60 @@ import { loadBleed, loadState, saveBleed } from './storage';
 interface Slot {
   file: File;
   url: string;
+  /** 拡大・位置・回転・左右反転（編集の画面ができるまでは、いつも既定） */
+  edit: CellEdit;
+  /** 写真の大きさ（画素。EXIF の向きを反映したもの）。読み込めるまでは未定 */
+  size?: { w: number; h: number };
+}
+
+/** 写真の大きさを読む。ブラウザは EXIF の向きを反映して表示するので、その大きさになる */
+function loadSize(url: string): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
 const pct = (v: number, total: number) => `${(v / total) * 100}%`;
+
+/**
+ * 写真を、塗り足しを含む範囲に敷く。サーバーが印刷画像を作る計算（cropRect）と同じ計算で置くので、
+ * 画面のプレビューと印刷結果がずれない。
+ */
+function SlotPhoto({
+  slot,
+  size,
+  box,
+}: {
+  slot: Slot;
+  size: { w: number; h: number };
+  box: { w: number; h: number };
+}) {
+  const l = previewLayout(size, box, slot.edit);
+  return (
+    <div
+      className="photo-frame"
+      style={{
+        left: `${l.container.leftPct}%`,
+        top: `${l.container.topPct}%`,
+        width: `${l.container.widthPct}%`,
+        height: `${l.container.heightPct}%`,
+      }}
+    >
+      <img
+        src={slot.url}
+        alt=""
+        style={{
+          width: l.swap ? '100cqh' : '100cqw',
+          height: l.swap ? '100cqw' : '100cqh',
+          transform: l.transform,
+        }}
+      />
+    </div>
+  );
+}
 
 function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -66,6 +118,25 @@ export function SheetPage() {
     return () => ctrl.abort();
   }, []);
 
+  // 写真の大きさを読む（プレビューの切り抜きに使う）。読めたら、同じ写真のコマすべてに入れる
+  useEffect(() => {
+    const pending = new Set(
+      Object.values(slots)
+        .filter((s) => !s.size)
+        .map((s) => s.url),
+    );
+    for (const url of pending) {
+      void loadSize(url).then((size) => {
+        if (!size) return;
+        setSlots((cur) =>
+          Object.fromEntries(
+            Object.entries(cur).map(([i, s]) => [i, s.url === url ? { ...s, size } : s]),
+          ),
+        );
+      });
+    }
+  }, [slots]);
+
   const paper = papers?.find((p) => p.id === paperId) ?? null;
   const cells = paper?.cells ?? [];
   const bleed = parseBleed(bleedText);
@@ -80,18 +151,23 @@ export function SheetPage() {
     .sort((a, b) => a[0] - b[0]);
 
   // 最終確認の画像が、今の設定と写真で作ったものかを見分けるための印
+  const edits = Object.fromEntries(photos.map(([i]) => [i, slots[i]!.edit]));
   const key = JSON.stringify({
     paperId,
     bleed,
     offset,
-    photos: photos.map(([i, f]) => [i, f.name, f.size, f.lastModified]),
+    photos: photos.map(([i, f]) => [i, f.name, f.size, f.lastModified, edits[i]]),
   });
   const fresh = preview?.key === key;
   const ready = !!paper && bleed !== null && photos.length > 0;
 
   const addSlots = (files: File[]) => {
     if (files.length === 0) return;
-    const entries = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
+    const entries: Slot[] = files.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+      edit: DEFAULT_EDIT,
+    }));
     setSlots((cur) => {
       const next = assignInOrder(cur, entries, cells.length);
       // 入りきらなかった分の一時 URL は解放する
@@ -104,7 +180,7 @@ export function SheetPage() {
   const setSlot = (index: number, file: File) =>
     setSlots((cur) => {
       if (cur[index]) URL.revokeObjectURL(cur[index].url);
-      return { ...cur, [index]: { file, url: URL.createObjectURL(file) } };
+      return { ...cur, [index]: { file, url: URL.createObjectURL(file), edit: DEFAULT_EDIT } };
     });
   const clearSlot = (index: number) =>
     setSlots((cur) => {
@@ -135,6 +211,7 @@ export function SheetPage() {
         offsetX: offset.x,
         offsetY: offset.y,
         photos,
+        edits,
       });
       if (format === 'preview') {
         if (preview) URL.revokeObjectURL(preview.url);
@@ -314,6 +391,7 @@ export function SheetPage() {
                 offsetX: offset.x,
                 offsetY: offset.y,
                 photos,
+                edits,
               },
               printer,
               options,
@@ -359,7 +437,15 @@ export function SheetPage() {
                           borderRadius: `${(b.cornerRadiusMm * 100) / W}cqw`,
                         }}
                       >
-                        <img src={slot.url} alt="" />
+                        {slot.size ? (
+                          <SlotPhoto
+                            slot={slot}
+                            size={slot.size}
+                            box={{ w: b.widthMm, h: b.heightMm }}
+                          />
+                        ) : (
+                          <img src={slot.url} alt="" className="cover" />
+                        )}
                       </div>
                     )}
                     <button

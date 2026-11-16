@@ -23,3 +23,13 @@ export {
 } from './printable.js';
 export { printDefaults, type PrintDefaults } from './printDefaults.js';
 export { sendPageToPrinter, type SendOptions, type SentJob } from './sendToPrinter.js';
+export {
+  cellEditSchema,
+  cropRect,
+  DEFAULT_EDIT,
+  isDefaultEdit,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  type CellEdit,
+  type CropRect,
+} from './cellEdit.js';

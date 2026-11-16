@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Paper } from './papers/index.js';
 import { isPrintable } from './papers/index.js';
 import {
+  cellEditSchema,
   DEFAULT_BLEED_MM,
   MAX_BLEED_MM,
   renderSheetPdf,
@@ -92,6 +93,28 @@ export async function readSheetForm(req: FastifyRequest, papers: Paper[]): Promi
   if (new Set(images.map((i) => i.cellIndex)).size !== images.length) {
     throw new FormError(400, '同じコマに複数の写真が指定されています');
   }
+  // コマごとの編集パラメータ（edit-<コマ番号> に JSON）。写真のあるコマにだけ付けられる
+  for (const [name, text] of Object.entries(fields)) {
+    const m = /^edit-(\d+)$/.exec(name);
+    if (!m) continue;
+    const image = images.find((i) => i.cellIndex === Number(m[1]));
+    if (!image)
+      throw new FormError(400, `コマ ${Number(m[1]) + 1} には写真がないので、編集は指定できません`);
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new FormError(400, `${name} が JSON として読めません`);
+    }
+    const edit = cellEditSchema.safeParse(json);
+    if (!edit.success) {
+      throw new FormError(
+        400,
+        `${name} が正しくありません: ${edit.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('、')}`,
+      );
+    }
+    image.edit = edit.data;
+  }
   const warnings = sheetWarnings(
     paper,
     bleedMm,
@@ -105,7 +128,7 @@ export async function readSheetForm(req: FastifyRequest, papers: Paper[]): Promi
  * format: preview（150dpi・確認用の輪郭つき）/ png（600dpi）/ pdf（用紙と同じ大きさ）
  */
 export async function registerSheetRoutes(app: FastifyInstance, papers: Paper[]) {
-  await app.register(multipart, { limits: { fileSize: MAX_PHOTO_BYTES, files: 64, fields: 24 } });
+  await app.register(multipart, { limits: { fileSize: MAX_PHOTO_BYTES, files: 64, fields: 96 } });
 
   app.post<{ Querystring: { format?: string } }>('/api/sheet/render', async (req, reply) => {
     const format = formatSchema.safeParse(req.query.format);

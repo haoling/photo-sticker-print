@@ -2,6 +2,7 @@ import { PDFDocument } from 'pdf-lib';
 import sharp, { type OverlayOptions } from 'sharp';
 import { computeCells } from '../papers/geometry.js';
 import type { Paper } from '../papers/schema.js';
+import { cropRect, DEFAULT_EDIT, isDefaultEdit, type CellEdit } from './cellEdit.js';
 import { DEFAULT_BLEED_MM, MAX_BLEED_MM } from './printable.js';
 import { pageSizePx, withPngDensity } from './testPrint.js';
 
@@ -10,6 +11,8 @@ export interface SheetCellImage {
   cellIndex: number;
   /** 元の写真（JPEG / PNG / WebP など sharp が読める形式） */
   image: Buffer;
+  /** 拡大・位置・回転・左右反転。省略すると、中央を基準に枠いっぱいに敷く */
+  edit?: CellEdit;
 }
 
 export interface SheetOptions {
@@ -53,6 +56,46 @@ export function bleedRect(
   };
 }
 
+/**
+ * 写真に編集（回転・反転・拡大・位置）を適用して、塗り足しを含む範囲に敷く元の画像（PNG）にする。
+ * 既定の編集なら、EXIF の向きを反映するだけにして、あとの resize（cover）に任せる。
+ * （縮小読み込みが効くので速く、仕上がりは同じ）
+ */
+async function oriented(
+  image: Buffer,
+  box: { width: number; height: number },
+  edit: CellEdit,
+): Promise<Buffer> {
+  if (isDefaultEdit(edit)) return sharp(image, { failOn: 'error' }).autoOrient().toBuffer();
+
+  const meta = await sharp(image, { failOn: 'error' }).metadata();
+  if (!meta.width || !meta.height) throw new Error('写真の大きさがわかりません');
+  const flipped = (meta.orientation ?? 1) >= 5; // EXIF の向きが 5〜8 のとき、縦横が入れ替わる
+  const imgSize = flipped ? { w: meta.height, h: meta.width } : { w: meta.width, h: meta.height };
+  const r = cropRect(imgSize, { w: box.width, h: box.height }, edit);
+
+  let pipeline = sharp(image, { failOn: 'error' }).autoOrient();
+  if (edit.flipH) {
+    // sharp は、呼ぶ順番に関係なく、左右反転を回転より先に行う。「回転してから反転」と同じ結果にするため、
+    // 反転してから逆向きに回す（反転と回転は、回す向きを逆にすると順番を入れ替えられる）。
+    pipeline = pipeline.flop();
+    const angle = (360 - edit.rotation) % 360;
+    if (angle) pipeline = pipeline.rotate(angle);
+  } else if (edit.rotation) {
+    pipeline = pipeline.rotate(edit.rotation);
+  }
+  const left = Math.min(Math.round(r.left), r.orientedW - 1);
+  const top = Math.min(Math.round(r.top), r.orientedH - 1);
+  return pipeline
+    .extract({
+      left,
+      top,
+      width: Math.max(1, Math.min(Math.round(r.width), r.orientedW - left)),
+      height: Math.max(1, Math.min(Math.round(r.height), r.orientedH - top)),
+    })
+    .toBuffer();
+}
+
 function normalizeOptions(opts: SheetOptions) {
   const {
     bleedMm = DEFAULT_BLEED_MM,
@@ -83,7 +126,7 @@ export async function renderSheetPng(
   const cells = computeCells(paper);
 
   const composites: OverlayOptions[] = [];
-  for (const { cellIndex, image } of images) {
+  for (const { cellIndex, image, edit } of images) {
     const cell = cells[cellIndex];
     if (!cell) throw new RangeError(`コマ ${cellIndex + 1} はこの用紙にありません`);
     const r = bleedRect(cell, bleedMm, offsetXMm, offsetYMm);
@@ -99,8 +142,9 @@ export async function renderSheetPng(
 
     let tile: Buffer;
     try {
-      tile = await sharp(image, { failOn: 'error' })
-        .rotate() // EXIF の向きを反映
+      tile = await sharp(await oriented(image, { width, height }, edit ?? DEFAULT_EDIT), {
+        failOn: 'error',
+      })
         .flatten({ background: '#ffffff' })
         .resize(width, height, { fit: 'cover', position: 'centre' })
         .toColourspace('srgb')
