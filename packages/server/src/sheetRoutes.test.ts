@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app.js';
 import { loadPapers, paperSchema, type Paper } from './papers/index.js';
+import { multipartBody, type Part } from './testing/multipart.js';
 
 const config = { immichUrl: 'http://x', immichApiKey: 'secret', port: 3000 };
 let papers: Paper[];
@@ -14,34 +15,6 @@ beforeAll(async () => {
     .jpeg()
     .toBuffer();
 });
-
-type Part = { name: string; value: string } | { name: string; filename: string; data: Buffer };
-
-function multipartBody(parts: Part[]) {
-  const boundary = '----sheet-test-boundary';
-  const chunks: Buffer[] = [];
-  for (const p of parts) {
-    chunks.push(Buffer.from(`--${boundary}\r\n`));
-    if ('value' in p) {
-      chunks.push(
-        Buffer.from(`Content-Disposition: form-data; name="${p.name}"\r\n\r\n${p.value}\r\n`),
-      );
-    } else {
-      chunks.push(
-        Buffer.from(
-          `Content-Disposition: form-data; name="${p.name}"; filename="${p.filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`,
-        ),
-        p.data,
-        Buffer.from('\r\n'),
-      );
-    }
-  }
-  chunks.push(Buffer.from(`--${boundary}--\r\n`));
-  return {
-    payload: Buffer.concat(chunks),
-    headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
-  };
-}
 
 const file = (cell: number, data: Buffer = photo): Part => ({
   name: `cell-${cell}`,

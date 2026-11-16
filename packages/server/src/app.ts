@@ -3,11 +3,13 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import type { Config } from './config.js';
 import { z } from 'zod';
+import { registerPrintRoutes } from './printRoutes.js';
 import { registerSheetRoutes } from './sheetRoutes.js';
 import { computeCells, isPrintable, type Paper } from './papers/index.js';
 import {
   buildTestPrintSvg,
   DEFAULT_LINE_COLOR,
+  printDefaults,
   renderTestPrintPdf,
   renderTestPrintPng,
   UnmeasuredPaperError,
@@ -42,10 +44,13 @@ export async function buildApp({
       printable: isPrintable(paper),
       // コマの位置とサイズ（mm）。画面はこれをそのまま使う（計算を二重に持たない）
       cells: isPrintable(paper) ? computeCells(paper) : null,
+      // 印刷の既定値（用紙の推奨設定から。画面で選び直せる）
+      printDefaults: printDefaults(paper),
     })),
   }));
 
   await registerSheetRoutes(app, papers);
+  await registerPrintRoutes(app, papers);
 
   // テスト印刷（コマの枠線だけ）。シール用紙に重ねて透かし、位置のズレを測る。
   const testPrintQuery = z.object({

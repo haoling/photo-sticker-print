@@ -21,3 +21,5 @@ export {
   MAX_BLEED_MM,
   sheetWarnings,
 } from './printable.js';
+export { printDefaults, type PrintDefaults } from './printDefaults.js';
+export { sendPageToPrinter, type SendOptions, type SentJob } from './sendToPrinter.js';
