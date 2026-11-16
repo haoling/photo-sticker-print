@@ -28,4 +28,35 @@ describe('app', () => {
     expect(body.papers.map((p) => p.id)).toContain('aone-29662');
     expect(body.papers.every((p) => p.printable)).toBe(true);
   });
+
+  describe('テスト印刷', () => {
+    const build = async () => {
+      const papers = await loadPapers(fileURLToPath(new URL('../../../papers', import.meta.url)));
+      return buildApp({ config, papers, logger: false });
+    };
+
+    it('PNG / PDF / SVG を返す', async () => {
+      const app = await build();
+      const png = await app.inject('/api/papers/aone-26009/test-print.png?offsetX=0.5');
+      expect(png.statusCode).toBe(200);
+      expect(png.headers['content-type']).toBe('image/png');
+      expect(png.rawPayload.subarray(1, 4).toString()).toBe('PNG');
+      const pdf = await app.inject('/api/papers/aone-26009/test-print.pdf');
+      expect(pdf.headers['content-type']).toBe('application/pdf');
+      expect(pdf.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
+      const svg = await app.inject('/api/papers/aone-29662/test-print.svg');
+      expect(svg.headers['content-type']).toBe('image/svg+xml');
+    });
+
+    it('存在しない用紙は 404、不正な位置補正は 400', async () => {
+      const app = await build();
+      expect((await app.inject('/api/papers/nothing/test-print.png')).statusCode).toBe(404);
+      expect(
+        (await app.inject('/api/papers/aone-26009/test-print.png?offsetX=abc')).statusCode,
+      ).toBe(400);
+      expect(
+        (await app.inject('/api/papers/aone-26009/test-print.png?offsetY=99')).statusCode,
+      ).toBe(400);
+    });
+  });
 });
