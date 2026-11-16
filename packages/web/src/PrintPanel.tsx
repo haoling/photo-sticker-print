@@ -8,6 +8,7 @@ import {
   type SendResult,
 } from './api';
 import { JobStatusView } from './JobStatusView';
+import { mediaTypeLabel, mediaTypeOptions } from './mediaTypes';
 import { loadPrinterState, savePrinterState, type PrintOverride } from './storage';
 
 const QUALITIES = [
@@ -172,20 +173,23 @@ export function PrintPanel({ paper, blockedReason, send }: Props) {
 
       <div className="print-options">
         <label className="field">
-          <span>用紙の種類（IPP の media-type）</span>
-          <input
-            type="text"
-            list="media-types"
-            autoComplete="off"
-            placeholder={defaults?.mediaType ?? 'プリンタ任せ'}
+          <span>用紙の種類</span>
+          <select
             value={override.mediaType ?? ''}
-            onChange={(e) => setOverride({ mediaType: e.target.value.trim() })}
-          />
-          <datalist id="media-types">
-            {(info?.mediaTypes ?? []).map((t) => (
-              <option key={t} value={t} />
-            ))}
-          </datalist>
+            onChange={(e) => setOverride({ mediaType: e.target.value })}
+          >
+            <option value="">
+              用紙の推奨（
+              {defaults?.mediaType ? mediaTypeLabel(defaults.mediaType) : 'プリンタ任せ'}）
+            </option>
+            {mediaTypeOptions(info?.mediaTypes, [defaults?.mediaType, override.mediaType]).map(
+              (o) => (
+                <option key={o.value} value={o.value}>
+                  {o.text}
+                </option>
+              ),
+            )}
+          </select>
         </label>
         <label className="field">
           <span>給紙位置</span>
@@ -232,8 +236,8 @@ export function PrintPanel({ paper, blockedReason, send }: Props) {
       </div>
       <p className="note">
         送る設定: {paper ? `${paper.sheet.widthMm}×${paper.sheet.heightMm}mm` : '—'}、用紙の種類{' '}
-        {effective.mediaType ?? 'プリンタ任せ'}、{sourceLabel(effective.mediaSource)}、
-        {effective.borderless ? 'フチなし' : 'フチあり'}、
+        {effective.mediaType ? mediaTypeLabel(effective.mediaType) : 'プリンタ任せ'}、
+        {sourceLabel(effective.mediaSource)}、{effective.borderless ? 'フチなし' : 'フチあり'}、
         {QUALITIES.find((q) => q.value === effective.quality)?.label}、600dpi
       </p>
 

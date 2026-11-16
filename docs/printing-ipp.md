@@ -48,6 +48,8 @@ IPP のエンコード・デコードと PWG Raster は、依存なしで自前�
 
 用紙定義の `recommendedPrint.mediaType`（`plain`、`photo-gloss`）を、IPP の `media-type` に対応づけている（`plain` → `stationery`、`photo-gloss` → `photographic`）。**これは暫定の対応**で、プリンタが受け付ける値は機種ごとに違う（TS7630 は `com.canon-mtglossy`、`com.canon-mtmat`、`com.canon-mthagakiglossy` など。[docs/printer-ts7630.md](printer-ts7630.md)）。「接続を確認」で出る一覧から、画面で選び直せる。
 
+画面では、用紙の種類を日本語の名前で出す（`packages/web/src/mediaTypes.ts`）。標準の値（`stationery` = 普通紙、`photographic` = 写真用紙、`photographic-glossy` = 写真用紙（光沢）など）は確かな対応。**`com.canon-` で始まる Canon 独自の値は、識別子の名前からの推定**（`mtglossy` = 光沢、`mtmat` = マット、`mtluster` = ラスター、`mthagakiglossy` = 写真はがき 光沢 など）で、Canon の製品名（「写真用紙 光沢 スタンダード」など）との対応は確認していない。そのため、選択肢には元の識別子も添えている（例: 「写真用紙 光沢（com.canon-mtglossy）」）。実際に刷って、用紙に合う値がわかったら、教えてほしい（対応を直す）。
+
 ## つながらないとき
 
 画面に出るエラーの原因の目安。
