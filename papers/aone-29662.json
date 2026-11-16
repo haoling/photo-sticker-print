@@ -1,0 +1,25 @@
+{
+  "$schema": "./schema.json",
+  "id": "aone-29662",
+  "name": "エーワン 29662 写真シール高画質 Medium",
+  "manufacturer": "エーワン",
+  "productCode": "29662",
+  "jan": "4906186296625",
+  "material": { "kind": "photo-gloss-film", "thicknessMm": 0.15 },
+  "sheetsPerPack": 3,
+  "sheet": { "sizeName": "hagaki", "widthMm": 100, "heightMm": 148 },
+  "layout": {
+    "type": "grid",
+    "columns": 2,
+    "rows": 5,
+    "cellWidthMm": 31,
+    "cellHeightMm": 23,
+    "cornerRadiusMm": null,
+    "firstCellLeftMm": null,
+    "firstCellTopMm": null,
+    "pitchXMm": null,
+    "pitchYMm": null
+  },
+  "recommendedPrint": { "mediaType": "photo-gloss" },
+  "verification": { "status": "unmeasured" }
+}

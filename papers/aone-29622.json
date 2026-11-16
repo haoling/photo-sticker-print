@@ -1,0 +1,28 @@
+{
+  "$schema": "./schema.json",
+  "id": "aone-29622",
+  "name": "エーワン 29622 写真シール Medium",
+  "manufacturer": "エーワン",
+  "productCode": "29622",
+  "jan": null,
+  "material": { "kind": "photo-gloss-paper", "thicknessMm": 0.18 },
+  "sheetsPerPack": 5,
+  "sheet": { "sizeName": "hagaki", "widthMm": 100, "heightMm": 148 },
+  "layout": {
+    "type": "grid",
+    "columns": 2,
+    "rows": 5,
+    "cellWidthMm": 31,
+    "cellHeightMm": 23,
+    "cornerRadiusMm": null,
+    "firstCellLeftMm": null,
+    "firstCellTopMm": null,
+    "pitchXMm": null,
+    "pitchYMm": null
+  },
+  "recommendedPrint": { "mediaType": "photo-gloss" },
+  "verification": {
+    "status": "unmeasured",
+    "source": "コマ寸法はパッケージ表記。29662 と同寸だが、位置は同一とは限らないので別に測る"
+  }
+}

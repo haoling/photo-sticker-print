@@ -1,0 +1,28 @@
+{
+  "$schema": "./schema.json",
+  "id": "aone-26009",
+  "name": "エーワン 26009 手書きもプリントもできるラベル 角型",
+  "manufacturer": "エーワン",
+  "productCode": "26009",
+  "jan": "4906186260091",
+  "material": { "kind": "plain", "thicknessMm": 0.17 },
+  "sheetsPerPack": 12,
+  "sheet": { "sizeName": "hagaki", "widthMm": 100, "heightMm": 148 },
+  "layout": {
+    "type": "grid",
+    "columns": 2,
+    "rows": 5,
+    "cellWidthMm": 40,
+    "cellHeightMm": 24,
+    "cornerRadiusMm": null,
+    "firstCellLeftMm": null,
+    "firstCellTopMm": null,
+    "pitchXMm": null,
+    "pitchYMm": null
+  },
+  "recommendedPrint": { "mediaType": "plain" },
+  "verification": {
+    "status": "unmeasured",
+    "source": "コマ寸法・面数・シートサイズはパッケージ表記（フォーマット番号 F10HS-6）"
+  }
+}
