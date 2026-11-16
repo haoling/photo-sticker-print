@@ -1,5 +1,6 @@
 export {
   buildTestPrintSvg,
+  DEFAULT_LINE_COLOR,
   pageSizePx,
   renderTestPrintPdf,
   renderTestPrintPng,

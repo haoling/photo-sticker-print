@@ -48,6 +48,18 @@ describe('app', () => {
       expect(svg.headers['content-type']).toBe('image/svg+xml');
     });
 
+    it('線の色を指定できる。不正な色は 400', async () => {
+      const app = await build();
+      const red = await app.inject('/api/papers/aone-26009/test-print.svg?color=ff0000');
+      expect(red.body).toContain('stroke="#ff0000"');
+      const hash = await app.inject('/api/papers/aone-26009/test-print.svg?color=%2300ff00');
+      expect(hash.body).toContain('stroke="#00ff00"');
+      for (const bad of ['red', 'fff', 'gggggg']) {
+        const res = await app.inject(`/api/papers/aone-26009/test-print.svg?color=${bad}`);
+        expect(res.statusCode, bad).toBe(400);
+      }
+    });
+
     it('存在しない用紙は 404、不正な位置補正は 400', async () => {
       const app = await build();
       expect((await app.inject('/api/papers/nothing/test-print.png')).statusCode).toBe(404);

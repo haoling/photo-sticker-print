@@ -15,7 +15,12 @@ export interface TestPrintOptions {
   dpi?: number;
   /** 枠線の太さ（mm） */
   lineWidthMm?: number;
+  /** 枠線の色。#rrggbb（既定は黒）。黒以外は RGB の PNG になる */
+  lineColor?: string;
 }
+
+export const DEFAULT_LINE_COLOR = '#000000';
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 export class UnmeasuredPaperError extends Error {
   constructor(id: string) {
@@ -42,7 +47,15 @@ const num = (n: number) => Number(n.toFixed(4)).toString();
  */
 export function buildTestPrintSvg(paper: Paper, opts: TestPrintOptions = {}): string {
   if (!isPrintable(paper)) throw new UnmeasuredPaperError(paper.id);
-  const { offsetXMm = 0, offsetYMm = 0, dpi = 600, lineWidthMm = 0.15 } = opts;
+  const {
+    offsetXMm = 0,
+    offsetYMm = 0,
+    dpi = 600,
+    lineWidthMm = 0.15,
+    lineColor = DEFAULT_LINE_COLOR,
+  } = opts;
+  if (!HEX_COLOR.test(lineColor))
+    throw new RangeError(`線の色は #rrggbb で指定してください: ${lineColor}`);
   const { widthPx, heightPx } = pageSizePx(paper, dpi);
   const { widthMm, heightMm } = paper.sheet;
 
@@ -61,7 +74,7 @@ export function buildTestPrintSvg(paper: Paper, opts: TestPrintOptions = {}): st
     `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPx}" height="${heightPx}" ` +
     `viewBox="0 0 ${num(widthMm)} ${num(heightMm)}">` +
     `<rect width="${num(widthMm)}" height="${num(heightMm)}" fill="#fff"/>` +
-    `<g fill="none" stroke="#000" stroke-width="${num(lineWidthMm)}">${rects.join('')}</g>` +
+    `<g fill="none" stroke="${lineColor.toLowerCase()}" stroke-width="${num(lineWidthMm)}">${rects.join('')}</g>` +
     `</svg>`
   );
 }
@@ -85,19 +98,18 @@ function withPngDensity(png: Buffer, dpi: number): Buffer {
   return Buffer.concat([png.subarray(0, ihdrEnd), chunk, png.subarray(ihdrEnd)]);
 }
 
-/** 白地に黒の枠線（8bit グレースケール）の PNG。dpi をメタデータにも入れる。 */
+/** 白地に枠線の PNG。黒なら 8bit グレースケール、それ以外の色は RGB。dpi をメタデータにも入れる。 */
 export async function renderTestPrintPng(
   paper: Paper,
   opts: TestPrintOptions = {},
 ): Promise<Buffer> {
   const { dpi = 600 } = opts;
   const { widthPx, heightPx } = pageSizePx(paper, dpi);
-  const png = await sharp(Buffer.from(buildTestPrintSvg(paper, opts)))
+  const flat = sharp(Buffer.from(buildTestPrintSvg(paper, opts)))
     .resize(widthPx, heightPx)
-    .flatten({ background: '#fff' })
-    .toColourspace('b-w')
-    .png()
-    .toBuffer();
+    .flatten({ background: '#fff' });
+  const isBlack = (opts.lineColor ?? DEFAULT_LINE_COLOR).toLowerCase() === DEFAULT_LINE_COLOR;
+  const png = await (isBlack ? flat.toColourspace('b-w') : flat).png().toBuffer();
   return withPngDensity(png, dpi);
 }
 

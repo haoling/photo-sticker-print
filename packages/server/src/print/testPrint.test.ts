@@ -52,6 +52,14 @@ describe('buildTestPrintSvg', () => {
     expect(moved).toContain('x="9.575" y="7.575"');
   });
 
+  it('線の色を指定できる（既定は黒）。#rrggbb 以外は拒否する', () => {
+    expect(buildTestPrintSvg(p26009)).toContain('stroke="#000000"');
+    expect(buildTestPrintSvg(p26009, { lineColor: '#FF0000' })).toContain('stroke="#ff0000"');
+    for (const bad of ['red', '#f00', '#ff0000"/><script>', 'ff0000']) {
+      expect(() => buildTestPrintSvg(p26009, { lineColor: bad }), bad).toThrow(RangeError);
+    }
+  });
+
   it('コマ位置が未測定の用紙は作れない', () => {
     const unmeasured = paperSchema.parse({
       ...p29662,
@@ -73,6 +81,18 @@ describe('renderTestPrintPng', () => {
     const meta = await sharp(await renderTestPrintPng(p26009)).metadata();
     expect(meta).toMatchObject({ width: 2362, height: 3496, density: 600, channels: 1 });
     expect(meta.space).toBe('b-w');
+  });
+
+  it('黒以外の色は RGB の PNG になり、枠線がその色で出る', async () => {
+    const png = await renderTestPrintPng(p26009, { lineColor: '#ff0000' });
+    const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+    expect(info.channels).toBe(3);
+    const at = (x: number, y: number) => {
+      const i = (Math.round(y) * info.width + Math.round(x)) * 3;
+      return [data[i], data[i + 1], data[i + 2]];
+    };
+    expect(at((8.5 + 0.075) * PX_PER_MM, 20 * PX_PER_MM)).toEqual([255, 0, 0]);
+    expect(at(20 * PX_PER_MM, 20 * PX_PER_MM)).toEqual([255, 255, 255]);
   });
 
   it('枠線は 26009 の 1 コマ目の左端（x=8.5mm）にあり、内側と外側は白', async () => {

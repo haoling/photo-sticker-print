@@ -6,12 +6,13 @@ import { z } from 'zod';
 import { isPrintable, type Paper } from './papers/index.js';
 import {
   buildTestPrintSvg,
+  DEFAULT_LINE_COLOR,
   renderTestPrintPdf,
   renderTestPrintPng,
   UnmeasuredPaperError,
 } from './print/index.js';
 
-type TestPrintOpts = { offsetXMm: number; offsetYMm: number };
+type TestPrintOpts = { offsetXMm: number; offsetYMm: number; lineColor: string };
 
 export interface AppOptions {
   config: Config;
@@ -42,6 +43,12 @@ export async function buildApp({
   const testPrintQuery = z.object({
     offsetX: z.coerce.number().min(-10).max(10).default(0),
     offsetY: z.coerce.number().min(-10).max(10).default(0),
+    // 6 桁の 16 進数（# は付けても付けなくてもよい）
+    color: z
+      .string()
+      .regex(/^#?[0-9a-fA-F]{6}$/)
+      .transform((c) => (c.startsWith('#') ? c : `#${c}`))
+      .default(DEFAULT_LINE_COLOR),
   });
   const testPrintFormats = {
     png: { type: 'image/png', render: (p: Paper, o: TestPrintOpts) => renderTestPrintPng(p, o) },
@@ -63,13 +70,15 @@ export async function buildApp({
         const query = testPrintQuery.safeParse(req.query);
         if (!query.success) {
           return reply.code(400).send({
-            error: '位置補正は offsetX / offsetY（mm、-10〜10）で指定してください',
+            error:
+              '位置補正は offsetX / offsetY（mm、-10〜10）、線の色は color（例: ff0000）で指定してください',
           });
         }
         try {
           const body = await format.render(paper, {
             offsetXMm: query.data.offsetX,
             offsetYMm: query.data.offsetY,
+            lineColor: query.data.color,
           });
           return reply.type(format.type).send(Buffer.from(body));
         } catch (e) {
