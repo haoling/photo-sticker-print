@@ -3,6 +3,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import type { Config } from './config.js';
 import { z } from 'zod';
+import { registerPhotoRoutes } from './photoRoutes.js';
+import { createImmichStorage, PrintImageLoader, type PhotoStorage } from './photos/index.js';
 import { registerPrintRoutes } from './printRoutes.js';
 import { registerSheetRoutes } from './sheetRoutes.js';
 import { computeCells, isPrintable, type Paper } from './papers/index.js';
@@ -24,6 +26,8 @@ export interface AppOptions {
   webRoot?: string;
   /** 読み込み済みの用紙定義 */
   papers?: Paper[];
+  /** フォトストレージ。省略すると、config の Immich を使う */
+  storage?: PhotoStorage;
 }
 
 export async function buildApp({
@@ -31,6 +35,7 @@ export async function buildApp({
   webRoot,
   papers = [],
   logger = true,
+  storage = createImmichStorage({ url: config.immichUrl, apiKey: config.immichApiKey }),
 }: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: logger ? { level: process.env.LOG_LEVEL ?? 'info' } : false });
 
@@ -49,8 +54,10 @@ export async function buildApp({
     })),
   }));
 
-  await registerSheetRoutes(app, papers);
-  await registerPrintRoutes(app, papers);
+  const loader = new PrintImageLoader(storage);
+  await registerPhotoRoutes(app, storage);
+  await registerSheetRoutes(app, papers, loader);
+  await registerPrintRoutes(app, papers, loader);
 
   // テスト印刷（コマの枠線だけ）。シール用紙に重ねて透かし、位置のズレを測る。
   const testPrintQuery = z.object({
@@ -109,6 +116,5 @@ export async function buildApp({
       return reply.sendFile('index.html');
     });
   }
-  void config;
   return app;
 }

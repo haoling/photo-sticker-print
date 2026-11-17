@@ -37,7 +37,7 @@ body {
   line-height: 1.6;
 }
 .app {
-  max-width: 960px;
+  max-width: 1360px;
   margin: 0 auto;
   padding: 16px;
 }
@@ -388,4 +388,147 @@ button:disabled,
 }
 .sheet .bleed img.cover {
   object-fit: cover;
+}
+
+/* 写真リスト（Immich）。広い画面では右の列、狭い画面ではシートの下 */
+.tp.with-photos {
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(300px, 400px);
+}
+.photos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 8px;
+  height: calc(100vh - 16px);
+  min-height: 320px;
+}
+@media (max-width: 1180px) {
+  .tp.with-photos {
+    grid-template-columns: minmax(260px, 340px) 1fr;
+  }
+  .photos {
+    grid-column: 1 / -1;
+    position: static;
+    height: 70vh;
+  }
+}
+@media (max-width: 720px) {
+  .tp.with-photos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .photos {
+    order: -1;
+    height: 60vh;
+  }
+}
+.tabs.small {
+  margin-top: 0;
+}
+.photo-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  background: var(--desk);
+  cursor: pointer;
+}
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.thumb[aria-pressed='true'] {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+.thumb[aria-pressed='true'] img {
+  opacity: 0.75;
+}
+.thumb .badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  font-size: 0.8rem;
+  line-height: 22px;
+  color: #fff;
+  background: #2563eb;
+}
+.sentinel {
+  height: 1px;
+}
+.album-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.album-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 10px 4px 4px;
+  text-align: left;
+  cursor: pointer;
+}
+.album-list img,
+.album-list .no-cover {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--desk);
+}
+.album-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.album-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sheet .cell.drop {
+  background: rgb(37 99 235 / 0.3);
+  outline: 3px solid #2563eb;
 }

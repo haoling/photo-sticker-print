@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_EDIT, previewLayout, type CellEdit } from './cellEdit';
-import { fetchPapers, printSheet, renderSheet, type PaperSummary, type SheetFormat } from './api';
+import {
+  fetchPapers,
+  photoPreviewUrl,
+  printSheet,
+  renderSheet,
+  type PaperSummary,
+  type Photo,
+  type SheetFormat,
+} from './api';
+import { PhotoBrowser } from './PhotoBrowser';
+import { DRAG_TYPE, parseDragData } from './photoList';
 import { PrintPanel } from './PrintPanel';
 import {
   assignInOrder,
@@ -13,7 +23,11 @@ import {
 import { loadBleed, loadState, saveBleed } from './storage';
 
 interface Slot {
-  file: File;
+  /** 手元のファイル。フォトストレージの写真なら無い */
+  file?: File;
+  /** フォトストレージの写真の id。手元のファイルなら無い */
+  photoId?: string;
+  name: string;
   url: string;
   /** 拡大・位置・回転・左右反転（編集の画面ができるまでは、いつも既定） */
   edit: CellEdit;
@@ -30,6 +44,23 @@ function loadSize(url: string): Promise<{ w: number; h: number } | null> {
     img.src = url;
   });
 }
+
+const fileSlot = (file: File): Slot => ({
+  file,
+  name: file.name,
+  url: URL.createObjectURL(file),
+  edit: DEFAULT_EDIT,
+});
+const photoSlot = (photo: Photo): Slot => ({
+  photoId: photo.id,
+  name: photo.name,
+  url: photoPreviewUrl(photo.id),
+  edit: DEFAULT_EDIT,
+});
+/** 手元のファイルのために作った一時 URL を解放する（フォトストレージの写真は何もしない） */
+const release = (slot: Slot) => {
+  if (slot.file) URL.revokeObjectURL(slot.url);
+};
 
 const pct = (v: number, total: number) => `${(v / total) * 100}%`;
 
@@ -90,6 +121,8 @@ export function SheetPage() {
   );
   const [busy, setBusy] = useState<SheetFormat | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Photo[]>([]);
+  const [dropTarget, setDropTarget] = useState<number | null>(null);
   const bulkInput = useRef<HTMLInputElement>(null);
   const slotInput = useRef<HTMLInputElement>(null);
   const slotTarget = useRef<number | null>(null);
@@ -99,7 +132,7 @@ export function SheetPage() {
   latest.current = { slots, preview };
   useEffect(
     () => () => {
-      Object.values(latest.current.slots).forEach((s) => URL.revokeObjectURL(s.url));
+      Object.values(latest.current.slots).forEach(release);
       if (latest.current.preview) URL.revokeObjectURL(latest.current.preview.url);
     },
     [],
@@ -146,7 +179,7 @@ export function SheetPage() {
     [paperId],
   );
   const photos = Object.entries(slots)
-    .map(([i, s]) => [Number(i), s.file] as [number, File])
+    .map(([i, s]) => [Number(i), s.file ?? s.photoId!] as [number, File | string])
     .filter(([i]) => i < cells.length)
     .sort((a, b) => a[0] - b[0]);
 
@@ -156,47 +189,51 @@ export function SheetPage() {
     paperId,
     bleed,
     offset,
-    photos: photos.map(([i, f]) => [i, f.name, f.size, f.lastModified, edits[i]]),
+    photos: photos.map(([i, f]) =>
+      typeof f === 'string' ? [i, f, edits[i]] : [i, f.name, f.size, f.lastModified, edits[i]],
+    ),
   });
   const fresh = preview?.key === key;
   const ready = !!paper && bleed !== null && photos.length > 0;
 
-  const addSlots = (files: File[]) => {
-    if (files.length === 0) return;
-    const entries: Slot[] = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      edit: DEFAULT_EDIT,
-    }));
+  const addSlots = (entries: Slot[]) => {
+    if (entries.length === 0) return;
     setSlots((cur) => {
       const next = assignInOrder(cur, entries, cells.length);
       // 入りきらなかった分の一時 URL は解放する
-      entries
-        .filter((e) => !Object.values(next).includes(e))
-        .forEach((e) => URL.revokeObjectURL(e.url));
+      entries.filter((e) => !Object.values(next).includes(e)).forEach(release);
       return next;
     });
   };
-  const setSlot = (index: number, file: File) =>
+  const setSlot = (index: number, slot: Slot) =>
     setSlots((cur) => {
-      if (cur[index]) URL.revokeObjectURL(cur[index].url);
-      return { ...cur, [index]: { file, url: URL.createObjectURL(file), edit: DEFAULT_EDIT } };
+      if (cur[index]) release(cur[index]);
+      return { ...cur, [index]: slot };
     });
+  /** フォトストレージの写真を入れる。1 枚目は target のコマ（なければ空いたコマ）、残りは空いたコマに順に */
+  const placePhotos = (list: Photo[], target?: number) => {
+    const entries = list.map(photoSlot);
+    if (target !== undefined && entries.length > 0) setSlot(target, entries.shift()!);
+    addSlots(entries);
+    // 入れた写真は、選択から外す
+    const placed = new Set(list.map((p) => p.id));
+    setSelected((cur) => cur.filter((p) => !placed.has(p.id)));
+  };
   const clearSlot = (index: number) =>
     setSlots((cur) => {
-      if (cur[index]) URL.revokeObjectURL(cur[index].url);
+      if (cur[index]) release(cur[index]);
       const rest = { ...cur };
       delete rest[index];
       return rest;
     });
   const clearAll = () => {
-    Object.values(slots).forEach((s) => URL.revokeObjectURL(s.url));
+    Object.values(slots).forEach(release);
     setSlots({});
   };
   const fillWithFirst = () => {
     const first = slots[photos[0]?.[0] ?? -1];
     if (!first) return;
-    Object.values(slots).forEach((s) => s !== first && URL.revokeObjectURL(s.url));
+    Object.values(slots).forEach((s) => s !== first && s.url !== first.url && release(s));
     setSlots(fillAll(first, cells.length));
   };
 
@@ -232,7 +269,7 @@ export function SheetPage() {
 
   const rp = paper?.recommendedPrint;
   return (
-    <div className="tp">
+    <div className="tp with-photos">
       <section className="tp-controls" aria-label="設定">
         <label className="field">
           <span>用紙</span>
@@ -297,12 +334,12 @@ export function SheetPage() {
             multiple
             hidden
             onChange={(e) => {
-              addSlots([...(e.target.files ?? [])]);
+              addSlots([...(e.target.files ?? [])].map(fileSlot));
               e.target.value = '';
             }}
           />
           <button type="button" disabled={!paper} onClick={() => bulkInput.current?.click()}>
-            写真を選ぶ（空いたコマに順に入る）
+            手元のファイルを選ぶ（空いたコマに順に入る）
           </button>
           <div className="presets">
             <button type="button" disabled={photos.length === 0} onClick={fillWithFirst}>
@@ -314,7 +351,7 @@ export function SheetPage() {
           </div>
           <p className="note">
             {photos.length} / {cells.length}{' '}
-            コマ。右のシートのコマを押すと、そのコマの写真を選び直せます。
+            コマ。写真リストから選ぶか、手元のファイルを使えます。コマを押すと、そのコマに手元のファイルを選べます。
           </p>
         </fieldset>
 
@@ -450,8 +487,10 @@ export function SheetPage() {
                     )}
                     <button
                       type="button"
-                      className={slot ? 'cell filled' : 'cell'}
-                      aria-label={`コマ ${c.index + 1}${slot ? `（${slot.file.name}）` : '（空）'}`}
+                      className={
+                        (slot ? 'cell filled' : 'cell') + (dropTarget === c.index ? ' drop' : '')
+                      }
+                      aria-label={`コマ ${c.index + 1}${slot ? `（${slot.name}）` : '（空）'}`}
                       style={{
                         left: pct(c.xMm, W),
                         top: pct(c.yMm, H),
@@ -460,8 +499,22 @@ export function SheetPage() {
                         borderRadius: `${(c.cornerRadiusMm * 100) / W}cqw`,
                       }}
                       onClick={() => {
+                        // 写真リストで選んでいれば、その 1 枚目を入れる。選んでいなければ手元のファイル
+                        if (selected.length > 0) return placePhotos([selected[0]!], c.index);
                         slotTarget.current = c.index;
                         slotInput.current?.click();
+                      }}
+                      onDragOver={(e) => {
+                        if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'copy';
+                        setDropTarget(c.index);
+                      }}
+                      onDragLeave={() => setDropTarget((t) => (t === c.index ? null : t))}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDropTarget(null);
+                        placePhotos(parseDragData(e.dataTransfer.getData(DRAG_TYPE)), c.index);
                       }}
                     >
                       {slot ? '' : '＋'}
@@ -491,7 +544,8 @@ export function SheetPage() {
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file && slotTarget.current !== null) setSlot(slotTarget.current, file);
+                if (file && slotTarget.current !== null)
+                  setSlot(slotTarget.current, fileSlot(file));
                 e.target.value = '';
               }}
             />
@@ -529,6 +583,12 @@ export function SheetPage() {
           </div>
         )}
       </section>
+
+      <PhotoBrowser
+        selected={selected}
+        onSelectedChange={setSelected}
+        onPour={() => placePhotos(selected)}
+      />
     </div>
   );
 }
