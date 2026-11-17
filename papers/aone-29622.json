@@ -1,0 +1,38 @@
+{
+  "$schema": "./schema.json",
+  "id": "aone-29622",
+  "name": "エーワン 29622 写真シール Medium",
+  "manufacturer": "エーワン",
+  "productCode": "29622",
+  "jan": "4906186296229",
+  "material": {
+    "kind": "photo-gloss-paper",
+    "thicknessMm": 0.18
+  },
+  "sheetsPerPack": 5,
+  "sheet": {
+    "sizeName": "hagaki",
+    "widthMm": 100,
+    "heightMm": 148
+  },
+  "layout": {
+    "type": "grid",
+    "columns": 2,
+    "rows": 5,
+    "cellWidthMm": 31,
+    "cellHeightMm": 23,
+    "cornerRadiusMm": 1.5,
+    "firstCellLeftMm": 13.0,
+    "firstCellTopMm": 7.5,
+    "pitchXMm": 43.0,
+    "pitchYMm": 27.5
+  },
+  "recommendedPrint": {
+    "mediaType": "photo-gloss",
+    "mediaSource": "rear"
+  },
+  "verification": {
+    "status": "measured",
+    "source": "コマ寸法・面数・シートサイズはパッケージ表記。コマ位置は上から撮った写真 3 枚を用紙の四隅で補正して測定し、コマ寸法 31×23mm で倍率を補正した推定値（X 方向は誤差±0.3mm 程度）。Y 方向は、上端・下端の余白をノギスで測って両方 7.5mm と確認済み（定義の上端 7.5mm・ピッチ 27.5mm と一致）。X 方向（左端 13.0mm・ピッチ 43mm）はノギスでは未確認。1 段目のコマだけ他の段より 0.3mm ほど大きく測れたが、原因は未確認。29662 とは別に測る"
+  }
+}

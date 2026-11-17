@@ -1,0 +1,40 @@
+{
+  "$schema": "./schema.json",
+  "id": "aone-26009",
+  "name": "エーワン 26009 手書きもプリントもできるラベル 角型",
+  "manufacturer": "エーワン",
+  "productCode": "26009",
+  "jan": "4906186260091",
+  "material": {
+    "kind": "plain",
+    "thicknessMm": 0.17
+  },
+  "sheetsPerPack": 12,
+  "sheet": {
+    "sizeName": "hagaki",
+    "widthMm": 100,
+    "heightMm": 148
+  },
+  "layout": {
+    "type": "grid",
+    "columns": 2,
+    "rows": 5,
+    "cellWidthMm": 40,
+    "cellHeightMm": 24,
+    "cornerRadiusMm": 2.0,
+    "firstCellLeftMm": 8.5,
+    "firstCellTopMm": 8.0,
+    "pitchXMm": 43.0,
+    "pitchYMm": 27.0
+  },
+  "recommendedPrint": {
+    "mediaType": "plain",
+    "mediaSource": "rear",
+    "borderless": false
+  },
+  "verification": {
+    "status": "verified",
+    "source": "コマ寸法・面数・シートサイズはパッケージ表記（フォーマット番号 F10HS-6）。コマ位置は上から撮った写真を用紙の四隅で補正して測定し、コマ寸法 40×24mm で倍率を補正した推定値（誤差は±0.2mm 程度）。定規での確認は未実施。2026-11-16、写真 10 コマを IPP で刷って、全コマで写真が赤枠（ハーフカットとほぼ同じ位置）の外まで回ることを確認し、剥がした 1 枚も四辺とも写真で覆われていた（目視）",
+    "verifiedWith": "Canon TS7630（IPP 直送、はがき・普通紙・後トレイ・フチあり、塗り足し 1mm）"
+  }
+}

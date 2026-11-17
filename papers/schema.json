@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "paper.schema.json",
+  "title": "用紙定義",
+  "description": "シール用紙 1 品番ぶんの定義。座標はすべて mm、原点は用紙の左上、X は右向き・Y は下向き。",
+  "type": "object",
+  "required": ["id", "name", "manufacturer", "productCode", "sheet", "layout", "verification"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "一意な ID（例: aone-29662）"
+    },
+    "name": { "type": "string" },
+    "manufacturer": { "type": "string" },
+    "productCode": { "type": "string", "description": "型番" },
+    "jan": { "type": ["string", "null"], "pattern": "^[0-9]{13}$" },
+    "productUrl": { "type": ["string", "null"], "format": "uri" },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["plain", "photo-gloss-paper", "photo-gloss-film"],
+          "description": "表面の種類"
+        },
+        "thicknessMm": { "type": ["number", "null"], "description": "総厚" }
+      }
+    },
+    "sheetsPerPack": { "type": ["integer", "null"] },
+    "sheet": {
+      "type": "object",
+      "required": ["widthMm", "heightMm", "sizeName"],
+      "additionalProperties": false,
+      "properties": {
+        "sizeName": {
+          "type": "string",
+          "description": "IPP の media 名に対応づける通称（例: hagaki）"
+        },
+        "widthMm": { "type": "number" },
+        "heightMm": { "type": "number" }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "required": ["type", "columns", "rows", "cellWidthMm", "cellHeightMm"],
+      "additionalProperties": false,
+      "description": "等間隔の格子。null は未測定（verification.status が measured 以前）を表す。印刷に使えるのは verification.status が measured 以降のもの。",
+      "properties": {
+        "type": { "const": "grid" },
+        "columns": { "type": "integer", "minimum": 1 },
+        "rows": { "type": "integer", "minimum": 1 },
+        "cellWidthMm": { "type": "number" },
+        "cellHeightMm": { "type": "number" },
+        "cornerRadiusMm": { "type": ["number", "null"] },
+        "firstCellLeftMm": { "type": ["number", "null"], "description": "左上コマの左端の X" },
+        "firstCellTopMm": { "type": ["number", "null"], "description": "左上コマの上端の Y" },
+        "pitchXMm": {
+          "type": ["number", "null"],
+          "description": "コマの左端どうしの間隔（コマ幅＋隙間）"
+        },
+        "pitchYMm": {
+          "type": ["number", "null"],
+          "description": "コマの上端どうしの間隔（コマ高＋隙間）"
+        }
+      }
+    },
+    "recommendedPrint": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "IPP に渡す推奨設定。値を決めていない項目は書かない。",
+      "properties": {
+        "mediaType": {
+          "type": "string",
+          "description": "用紙の種類（プリンタプロファイル側で IPP の値に変換）"
+        },
+        "mediaSource": {
+          "enum": ["auto", "main", "rear"],
+          "description": "給紙位置（IPP の media-source。rear は後トレイ、main はカセット）"
+        },
+        "borderless": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "borderless": { "type": "boolean", "description": "フチなし印刷が必要か" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": ["unmeasured", "measured", "verified"],
+          "description": "unmeasured: コマ位置が未測定 / measured: 測定値あり・実機未検証 / verified: 実機で白い隙間なしを確認済み"
+        },
+        "source": {
+          "type": "string",
+          "description": "コマ位置の出どころ（メーカーテンプレート、実測など）"
+        },
+        "verifiedWith": { "type": "string", "description": "検証したプリンタ（verified のとき）" }
+      }
+    }
+  }
+}

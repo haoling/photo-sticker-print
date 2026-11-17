@@ -1,0 +1,37 @@
+{
+  "$schema": "./schema.json",
+  "id": "aone-29662",
+  "name": "エーワン 29662 写真シール高画質 Medium",
+  "manufacturer": "エーワン",
+  "productCode": "29662",
+  "jan": "4906186296625",
+  "material": {
+    "kind": "photo-gloss-film",
+    "thicknessMm": 0.15
+  },
+  "sheetsPerPack": 3,
+  "sheet": {
+    "sizeName": "hagaki",
+    "widthMm": 100,
+    "heightMm": 148
+  },
+  "layout": {
+    "type": "grid",
+    "columns": 2,
+    "rows": 5,
+    "cellWidthMm": 31,
+    "cellHeightMm": 23,
+    "cornerRadiusMm": 1.5,
+    "firstCellLeftMm": 13.5,
+    "firstCellTopMm": 7.5,
+    "pitchXMm": 43.0,
+    "pitchYMm": 27.5
+  },
+  "recommendedPrint": {
+    "mediaType": "photo-gloss"
+  },
+  "verification": {
+    "status": "measured",
+    "source": "コマ寸法・面数・シートサイズはパッケージ表記。コマ位置は上から撮った写真 2 枚（反射でコマの線が見える箇所が少ない）を用紙の四隅で補正して測定し、コマ寸法 31×23mm で倍率を補正した推定値。Y 方向（上端 7.5・ピッチ 27.5）は 2 枚で一致し 29622 とも同じ（誤差±0.3mm 程度）。X 方向（左端 13.5）は 29622 の 13.0 より 0.4mm ほど右に測れたが、誤差の範囲内かもしれない（誤差±0.5mm 程度）。角丸 1.5mm は測れていないので 29622 の値を仮置き。実機の印刷で位置補正して確認する"
+  }
+}

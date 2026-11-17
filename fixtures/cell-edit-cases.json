@@ -1,0 +1,410 @@
+{
+  "description": "編集パラメータ（拡大率・中心・回転・左右反転）から、写真のどの範囲を切り抜くかを求める計算のゴールデンケース。サーバー（packages/server/src/print/cellEdit.ts）と画面（packages/web/src/cellEdit.ts）の両方のテストが、このファイルを読んで、同じ値になることを確かめる。計算: 回転後の寸法 (ow, oh) で、s = max(box.w/ow, box.h/oh) × zoom、窓 = (box.w/s, box.h/s)、窓の中心 = (focusX×ow, focusY×oh) を、画像の内側に収める。zoom は 1〜8、focusX / focusY は 0〜1 に収めてから計算する。left/top/width/height は回転・反転後の画像の座標（画素）。",
+  "cases": [
+    {
+      "name": "横長の写真を既定で",
+      "note": "縦いっぱいに敷き、左右を中央で切り落とす（1584×1200 の窓）",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 1,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 108.0,
+        "top": 0.0,
+        "width": 1584.0,
+        "height": 1200.0
+      }
+    },
+    {
+      "name": "縦長の写真を既定で",
+      "note": "横いっぱいに敷き、上下を中央で切り落とす",
+      "image": {
+        "w": 1200,
+        "h": 1800
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 1,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1200,
+        "orientedH": 1800,
+        "left": 0.0,
+        "top": 445.454545,
+        "width": 1200.0,
+        "height": 909.090909
+      }
+    },
+    {
+      "name": "ぴったり同じ縦横比",
+      "note": "切り落としなし",
+      "image": {
+        "w": 1650,
+        "h": 1250
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 1,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1650,
+        "orientedH": 1250,
+        "left": 0.0,
+        "top": 0.0,
+        "width": 1650.0,
+        "height": 1250.0
+      }
+    },
+    {
+      "name": "2 倍に拡大（中央）",
+      "note": "窓は半分の大きさになる",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 2,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 504.0,
+        "top": 300.0,
+        "width": 792.0,
+        "height": 600.0
+      }
+    },
+    {
+      "name": "2 倍に拡大（左上）",
+      "note": "窓は左上の角に寄る（はみ出さない）",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 2,
+        "focusX": 0,
+        "focusY": 0,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 0,
+        "top": 0,
+        "width": 792.0,
+        "height": 600.0
+      }
+    },
+    {
+      "name": "2 倍に拡大（右下）",
+      "note": "窓は右下の角に寄る",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 2,
+        "focusX": 1,
+        "focusY": 1,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 1008.0,
+        "top": 600.0,
+        "width": 792.0,
+        "height": 600.0
+      }
+    },
+    {
+      "name": "中心を右へずらす",
+      "note": "窓は動けるところまで動く（横は 108 まで）",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 1,
+        "focusX": 0.9,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 216.0,
+        "top": 0.0,
+        "width": 1584.0,
+        "height": 1200.0
+      }
+    },
+    {
+      "name": "90°回転",
+      "note": "回転後の向き（1200×1800）で切り抜く",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 1,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 90,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1200,
+        "orientedH": 1800,
+        "left": 0.0,
+        "top": 445.454545,
+        "width": 1200.0,
+        "height": 909.090909
+      }
+    },
+    {
+      "name": "270°回転 + 拡大",
+      "note": "",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 1.5,
+        "focusX": 0.5,
+        "focusY": 0.25,
+        "rotation": 270,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1200,
+        "orientedH": 1800,
+        "left": 200.0,
+        "top": 146.969697,
+        "width": 800.0,
+        "height": 606.060606
+      }
+    },
+    {
+      "name": "180°回転",
+      "note": "寸法は変わらない",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 1,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 180,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 108.0,
+        "top": 0.0,
+        "width": 1584.0,
+        "height": 1200.0
+      }
+    },
+    {
+      "name": "左右反転",
+      "note": "窓の位置・大きさは反転しても同じ（反転後の画像の座標で指定する）",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 1,
+        "focusX": 0.25,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": true
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 0,
+        "top": 0.0,
+        "width": 1584.0,
+        "height": 1200.0
+      }
+    },
+    {
+      "name": "拡大の下限（1 未満は 1）",
+      "note": "",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 0.5,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 108.0,
+        "top": 0.0,
+        "width": 1584.0,
+        "height": 1200.0
+      }
+    },
+    {
+      "name": "拡大の上限（8 を超えたら 8）",
+      "note": "",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 20,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 801.0,
+        "top": 525.0,
+        "width": 198.0,
+        "height": 150.0
+      }
+    },
+    {
+      "name": "中心の範囲外は 0〜1 に収める",
+      "note": "",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 2,
+        "focusX": -3,
+        "focusY": 7,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": 0,
+        "top": 600.0,
+        "width": 792.0,
+        "height": 600.0
+      }
+    },
+    {
+      "name": "塗り足し 0 のコマ（31×23）",
+      "note": "",
+      "image": {
+        "w": 4000,
+        "h": 3000
+      },
+      "box": {
+        "w": 31,
+        "h": 23
+      },
+      "edit": {
+        "zoom": 1,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 4000,
+        "orientedH": 3000,
+        "left": 0.0,
+        "top": 16.129032,
+        "width": 4000.0,
+        "height": 2967.741935
+      }
+    }
+  ]
+}

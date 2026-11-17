@@ -13,9 +13,9 @@
 
 ## 印刷まわり（[実機調査](printer-ts7630.md)で決定）
 
-- **印刷データ**: TS7630 は PDF を受け付けず、`image/pwg-raster` / `image/urf` / `image/jpeg` のみ。**自前でラスタ（PWG Raster、600dpi、sRGB 8bit）を生成し、IPP の Print-Job で直接送る。** コンテナ内 CUPS は使わない。
+- **印刷データ**: TS7630 は PDF を受け付けず、`image/pwg-raster` / `image/urf` / `image/jpeg` のみ。**自前でラスタ（PWG Raster、600dpi、sRGB 8bit）を生成し、IPP の Print-Job で直接送る（実装済み。実機では未検証）。** コンテナ内 CUPS は使わない。
 - **画像生成**: `sharp`（libvips）で 600dpi のページ画像を作り、生の RGB を自前の PWG Raster エンコーダ（ヘッダ 1796 バイト + 行ごとの圧縮）に渡す。
-- **IPP クライアント**: 使う操作は Print-Job、Get-Printer-Attributes、Get-Job-Attributes（と Get-Jobs）の少数。属性の組み立てを細かく制御したいので、エンコーダ / デコーダを自前で書く方向（M1 で最終判断）。
+- **IPP クライアント**: 使う操作は Print-Job、Get-Printer-Attributes、Get-Job-Attributes（と Get-Jobs）の少数。属性の組み立てを細かく制御したいので、エンコーダ / デコーダを自前で書いた（`packages/server/src/ipp/`。M1 で確定。[docs/printing-ipp.md](printing-ipp.md)）。
 - **PDF 生成**: `pdf-lib`。予備のダウンロード専用で、プリンタには送らない。
 - **プレビューと印刷の一致**: 編集パラメータ（トリミング位置・倍率・角度・反転・フレーム ID）を共通の型にし、サーバー側で同じ式から画像を生成する。
 
