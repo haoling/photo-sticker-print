@@ -11,6 +11,7 @@ import {
   type PrinterTarget,
 } from './ipp/index.js';
 import { isPrintable, type Paper } from './papers/index.js';
+import type { PrintImageLoader } from './photos/index.js';
 import {
   DEFAULT_LINE_COLOR,
   printDefaults,
@@ -105,7 +106,11 @@ const zodMessage = (e: z.ZodError) =>
  * プリンタへの直接送信（IPP）。multipart の登録（registerSheetRoutes）のあとに呼ぶこと。
  * このアプリには認証がないので、送り先は LAN 内のアドレスに限る（ipp/target.ts）。
  */
-export async function registerPrintRoutes(app: FastifyInstance, papers: Paper[]) {
+export async function registerPrintRoutes(
+  app: FastifyInstance,
+  papers: Paper[],
+  loader?: PrintImageLoader,
+) {
   // プリンタへの接続確認。機種・状態・対応する用紙の種類などを返す。
   app.post('/api/printers/probe', async (req, reply) => {
     const body = probeSchema.safeParse(req.body ?? {});
@@ -121,7 +126,7 @@ export async function registerPrintRoutes(app: FastifyInstance, papers: Paper[])
   // 写真を割り付けたシートを、プリンタへ送る（フォームは /api/sheet/render と同じ + プリンタの設定）
   app.post('/api/print/sheet', async (req, reply) => {
     try {
-      const form = await readSheetForm(req, papers);
+      const form = await readSheetForm(req, papers, loader);
       const options = printerOptionsSchema.safeParse(form.fields);
       if (!options.success) throw new FormError(400, zodMessage(options.error));
       if (form.images.length === 0) throw new FormError(400, '写真が 1 枚もありません');

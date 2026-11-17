@@ -42,6 +42,56 @@ export async function fetchPapers(signal?: AbortSignal): Promise<PaperSummary[]>
   return body.papers;
 }
 
+// ---------- フォトストレージ（Immich）。API キーはサーバーだけが持ち、ここには出てこない ----------
+
+export interface Photo {
+  id: string;
+  name: string;
+  takenAt: string | null;
+  width: number | null;
+  height: number | null;
+}
+
+export interface Album {
+  id: string;
+  name: string;
+  photoCount: number;
+  coverPhotoId: string | null;
+}
+
+export interface PhotoPage {
+  photos: Photo[];
+  nextCursor: string | null;
+}
+
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()) as T;
+}
+
+/** 写真の一覧（新しい順）。albumId を渡すと、そのアルバムの中だけ */
+export function fetchPhotos(
+  opts: { albumId?: string; cursor?: string },
+  signal?: AbortSignal,
+): Promise<PhotoPage> {
+  const q = new URLSearchParams({ limit: '60' });
+  if (opts.cursor) q.set('cursor', opts.cursor);
+  const path = opts.albumId
+    ? `/api/albums/${encodeURIComponent(opts.albumId)}/photos`
+    : '/api/photos';
+  return getJson<PhotoPage>(`${path}?${q}`, signal);
+}
+
+export async function fetchAlbums(signal?: AbortSignal): Promise<Album[]> {
+  return (await getJson<{ albums: Album[] }>('/api/albums', signal)).albums;
+}
+
+/** 一覧用の小さい画像 */
+export const photoThumbnailUrl = (id: string) => `/api/photos/${encodeURIComponent(id)}/thumbnail`;
+/** シートに置く、中くらいの画像 */
+export const photoPreviewUrl = (id: string) => `/api/photos/${encodeURIComponent(id)}/preview`;
+
 export type SheetFormat = 'preview' | 'png' | 'pdf';
 
 export interface SheetRequest {
@@ -49,8 +99,8 @@ export interface SheetRequest {
   bleedMm: number;
   offsetX: number;
   offsetY: number;
-  /** コマの番号（0 始まり）と、そのコマに入れる写真 */
-  photos: [cellIndex: number, file: File][];
+  /** コマの番号（0 始まり）と、そのコマに入れる写真（ファイルか、フォトストレージの写真の id） */
+  photos: [cellIndex: number, source: File | string][];
   /** コマごとの編集（拡大・位置・回転・左右反転）。既定のコマは省略できる */
   edits?: Record<number, CellEdit>;
 }
@@ -71,8 +121,9 @@ function sheetForm(req: SheetRequest): FormData {
   form.set('bleedMm', String(req.bleedMm));
   form.set('offsetX', String(req.offsetX));
   form.set('offsetY', String(req.offsetY));
-  for (const [cellIndex, file] of req.photos) {
-    form.set(`cell-${cellIndex}`, file, file.name);
+  for (const [cellIndex, source] of req.photos) {
+    if (typeof source === 'string') form.set(`photo-${cellIndex}`, source);
+    else form.set(`cell-${cellIndex}`, source, source.name);
     const edit = req.edits?.[cellIndex];
     if (edit && !isDefaultEdit(edit)) form.set(`edit-${cellIndex}`, JSON.stringify(edit));
   }

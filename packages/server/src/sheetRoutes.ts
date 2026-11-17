@@ -2,9 +2,13 @@ import multipart from '@fastify/multipart';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Paper } from './papers/index.js';
-import { isPrintable } from './papers/index.js';
+import { computeCells, isPrintable } from './papers/index.js';
+import { PHOTO_ID } from './photoRoutes.js';
+import { MIN_PRINT_DPI, PhotoStorageError, type PrintImageLoader } from './photos/index.js';
 import {
+  bleedRect,
   cellEditSchema,
+  DEFAULT_EDIT,
   DEFAULT_BLEED_MM,
   MAX_BLEED_MM,
   renderSheetPdf,
@@ -48,9 +52,14 @@ export interface SheetForm {
 
 /**
  * 写真を割り付けるフォーム（multipart）を読んで検証する。
- * 写真は `cell-<コマ番号>`（0 始まり）で受け取り、サーバーには保存しない。
+ * 写真は `cell-<コマ番号>`（0 始まり）にファイルで、または `photo-<コマ番号>` にフォトストレージの
+ * 写真の id で受け取る。サーバーには保存しない。
  */
-export async function readSheetForm(req: FastifyRequest, papers: Paper[]): Promise<SheetForm> {
+export async function readSheetForm(
+  req: FastifyRequest,
+  papers: Paper[],
+  loader?: PrintImageLoader,
+): Promise<SheetForm> {
   if (!req.isMultipart()) throw new FormError(400, 'multipart/form-data で送ってください');
 
   const fields: Record<string, string> = {};
@@ -83,6 +92,19 @@ export async function readSheetForm(req: FastifyRequest, papers: Paper[]): Promi
     throw new FormError(409, `${paper.id}: コマ位置が未測定のため、印刷データは作れません`);
   }
   const cellCount = paper.layout.columns * paper.layout.rows;
+  // フォトストレージの写真（photo-<コマ番号> に id）。画像は、編集パラメータを読んだあとで取りに行く
+  const stored: { image: SheetCellImage; id: string }[] = [];
+  for (const [name, id] of Object.entries(fields)) {
+    const m = /^photo-(\d+)$/.exec(name);
+    if (!m) continue;
+    if (!PHOTO_ID.test(id)) throw new FormError(400, `${name} の id が正しくありません`);
+    const image: SheetCellImage = { cellIndex: Number(m[1]), image: Buffer.alloc(0) };
+    images.push(image);
+    stored.push({ image, id });
+  }
+  if (stored.length > 0 && !loader) {
+    throw new FormError(400, 'フォトストレージが設定されていません');
+  }
   const bad = images.find((i) => i.cellIndex >= cellCount);
   if (bad) {
     throw new FormError(
@@ -120,6 +142,44 @@ export async function readSheetForm(req: FastifyRequest, papers: Paper[]): Promi
     bleedMm,
     images.map((i) => i.cellIndex),
   );
+
+  // フォトストレージの写真を取る（プレビュー画像。解像度が足りなければ元のファイル）
+  const cells = computeCells(paper);
+  const lowRes: { cell: number; dpi: number }[] = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < stored.length) {
+      const { image, id } = stored[next++]!;
+      const box = bleedRect(cells[image.cellIndex]!, bleedMm);
+      try {
+        const got = await loader!.load(
+          id,
+          { w: box.widthMm, h: box.heightMm },
+          image.edit ?? DEFAULT_EDIT,
+        );
+        image.image = got.image;
+        if (got.dpi < MIN_PRINT_DPI) {
+          lowRes.push({ cell: image.cellIndex + 1, dpi: Math.round(got.dpi) });
+        }
+      } catch (e) {
+        if (e instanceof PhotoStorageError) {
+          throw new FormError(e.status, `コマ ${image.cellIndex + 1}: ${e.message}`);
+        }
+        throw new SheetImageError(image.cellIndex, e);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, stored.length) }, worker));
+  if (lowRes.length > 0) {
+    warnings.push(
+      `${lowRes
+        .sort((a, b) => a.cell - b.cell)
+        .map((l) => `コマ ${l.cell}（約 ${l.dpi}dpi）`)
+        .join(
+          '・',
+        )} の写真は、解像度が低めです（${MIN_PRINT_DPI}dpi 以上を勧めます）。ぼやけて見えるかもしれません。`,
+    );
+  }
   return { paper, bleedMm, offsetX, offsetY, images, fields, warnings };
 }
 
@@ -127,7 +187,11 @@ export async function readSheetForm(req: FastifyRequest, papers: Paper[]): Promi
  * 写真を割り付けたシートの画像・PDF を作る。
  * format: preview（150dpi・確認用の輪郭つき）/ png（600dpi）/ pdf（用紙と同じ大きさ）
  */
-export async function registerSheetRoutes(app: FastifyInstance, papers: Paper[]) {
+export async function registerSheetRoutes(
+  app: FastifyInstance,
+  papers: Paper[],
+  loader?: PrintImageLoader,
+) {
   await app.register(multipart, { limits: { fileSize: MAX_PHOTO_BYTES, files: 64, fields: 96 } });
 
   app.post<{ Querystring: { format?: string } }>('/api/sheet/render', async (req, reply) => {
@@ -136,7 +200,7 @@ export async function registerSheetRoutes(app: FastifyInstance, papers: Paper[])
       return reply.code(400).send({ error: 'format は preview / png / pdf のいずれかです' });
     }
     try {
-      const form = await readSheetForm(req, papers);
+      const form = await readSheetForm(req, papers, loader);
       reply.header('x-sheet-warnings', encodeURIComponent(JSON.stringify(form.warnings)));
 
       const opts = { bleedMm: form.bleedMm, offsetXMm: form.offsetX, offsetYMm: form.offsetY };

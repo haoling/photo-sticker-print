@@ -9,6 +9,7 @@ Immich などのクラウドフォトストレージから写真を選び、エ�
 
 - [要件](docs/requirements.md)
 - [マイルストーン](docs/milestones.md)
+- [Immich 連携](docs/immich.md)
 - [写真の割り付けと印刷](docs/sheet-print.md)
 - [プリンタへの直接送信（IPP）](docs/printing-ipp.md)
 - [テスト印刷の使い方](docs/test-print.md)
@@ -18,7 +19,7 @@ Immich などのクラウドフォトストレージから写真を選び、エ�
 
 ## ステータス
 
-M0（土台づくり）はほぼ完了。空のアプリが起動する段階で、写真・印刷の機能はまだありません。
+M1（用紙定義と印刷）まで完了。M2（Immich 連携）は実装済みで、実機の Immich での確認待ちです。詳しくは[マイルストーン](docs/milestones.md)。
 
 ## 動かし方
 
@@ -47,12 +48,12 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build
 
 ### 環境変数
 
-| 変数                  | 必須 | 内容                                        |
-| --------------------- | ---- | ------------------------------------------- |
-| `IMMICH_URL`          | ○    | Immich サーバーの URL                       |
-| `IMMICH_API_KEY`      | ○    | Immich の API キー                          |
-| `PORT`                |      | 待ち受けポート（既定 3000）                 |
-| `PRINTER_SCAN_SUBNET` |      | IP スキャンの初期値（例: `192.168.1.0/24`） |
+| 変数                  | 必須 | 内容                                                                |
+| --------------------- | ---- | ------------------------------------------------------------------- |
+| `IMMICH_URL`          | ○    | Immich サーバーの URL                                               |
+| `IMMICH_API_KEY`      | ○    | Immich の API キー（必要な権限は [docs/immich.md](docs/immich.md)） |
+| `PORT`                |      | 待ち受けポート（既定 3000）                                         |
+| `PRINTER_SCAN_SUBNET` |      | IP スキャンの初期値（例: `192.168.1.0/24`）                         |
 
 未設定・不正な場合は、問題のある変数を全部並べて起動を中止する。
 
