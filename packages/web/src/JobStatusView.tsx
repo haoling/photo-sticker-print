@@ -78,6 +78,11 @@ export function JobStatusView({ target, jobId }: { target: PrinterTargetInput; j
           ))}
         </ul>
       )}
+      {status?.state === 'stopped' && (
+        <p className="note">
+          印刷が止まっています。プリンタの画面の指示に従ってください（用紙をセットするなど）。解決すると、印刷が再開されることがあります。再開しないときは、プリンタでキャンセルして、もう一度送ってください。
+        </p>
+      )}
       {error && <p className="invalid">状態を取得できません: {error}</p>}
     </div>
   );

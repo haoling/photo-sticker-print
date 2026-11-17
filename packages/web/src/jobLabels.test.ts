@@ -12,6 +12,31 @@ describe('jobStateLabel', () => {
   });
 });
 
+describe('describeReasons（実機の TS7630 が用紙切れのときに返した理由）', () => {
+  it('用紙がないとき: 用紙が必要・用紙がない（赤＝エラー）、受信領域がいっぱい（情報）、ジョブ停止', () => {
+    expect(
+      describeReasons([
+        'media-needed-error',
+        'media-empty-error',
+        'spool-area-full-report',
+        'job-stopped',
+      ]),
+    ).toEqual([
+      { text: '用紙が必要です', severity: 'error' },
+      { text: '用紙がありません', severity: 'error' },
+      { text: 'プリンタの受信領域がいっぱいです（大きなデータを処理中）', severity: 'report' },
+      { text: 'ジョブが停止しています', severity: 'report' },
+    ]);
+  });
+
+  it('印刷中の受信領域の理由も、日本語になる', () => {
+    expect(describeReasons(['spool-area-full-report', 'job-printing'])).toEqual([
+      { text: 'プリンタの受信領域がいっぱいです（大きなデータを処理中）', severity: 'report' },
+      { text: '印刷中です', severity: 'report' },
+    ]);
+  });
+});
+
 describe('describeReasons', () => {
   it('用紙切れ・インク切れ・紙詰まりを日本語にする（重大度の接尾辞は外して引く）', () => {
     expect(

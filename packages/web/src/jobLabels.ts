@@ -41,6 +41,14 @@ const REASON_LABEL: Record<string, string> = {
   'job-data-insufficient': 'データが足りません',
   'job-hold-until-specified': '保留中です',
   'printer-stopped': 'プリンタが停止しています',
+  // 実機（TS7630）が、用紙切れのときに返した理由
+  'spool-area-full': 'プリンタの受信領域がいっぱいです（大きなデータを処理中）',
+  'job-stopped': 'ジョブが停止しています',
+  'job-canceled-at-device': 'プリンタでキャンセルされました',
+  'job-canceled-by-operator': '管理者にキャンセルされました',
+  'job-completed-with-warnings': '警告つきで終わりました',
+  'job-completed-with-errors': 'エラーを含んで終わりました',
+  'queued-in-device': 'プリンタが受け取りました',
   'printer-stopped-partly': 'プリンタが一部停止しています',
 };
 
