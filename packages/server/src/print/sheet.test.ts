@@ -297,7 +297,12 @@ describe('sheetWarnings', () => {
   });
 
   it('塗り足しが 0.8mm 未満だと警告（0.8mm 以上は警告なし）', () => {
-    expect(sheetWarnings(p26009, 0.2, [0])[0]).toContain('推定値');
+    // 推定値（measured）の用紙の警告には、コマ位置の誤差のことも添える。検証済み（verified）の用紙には添えない
+    expect(p29622.verification.status).toBe('measured');
+    expect(p26009.verification.status).toBe('verified');
+    expect(sheetWarnings(p29622, 0.2, [0])[0]).toContain('推定値');
+    expect(sheetWarnings(p26009, 0.2, [0])[0]).toContain('0.8mm 未満');
+    expect(sheetWarnings(p26009, 0.2, [0])[0]).not.toContain('推定値');
     expect(sheetWarnings(p29622, 0.5, [4])[0]).toContain('0.8mm 未満');
     expect(sheetWarnings(p29622, 0.8, [4])).toEqual([]);
     expect(sheetWarnings(p29622, 1, [4])).toEqual([]);
