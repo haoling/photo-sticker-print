@@ -22,6 +22,7 @@ import {
   parseBleed,
 } from './sheetLayout';
 import { loadBleed, loadState, saveBleed } from './storage';
+import { loadWork, saveWork } from './workState';
 
 interface Slot {
   /** 手元のファイル。フォトストレージの写真なら無い */
@@ -52,7 +53,7 @@ const fileSlot = (file: File): Slot => ({
   url: URL.createObjectURL(file),
   edit: DEFAULT_EDIT,
 });
-const photoSlot = (photo: Photo): Slot => ({
+const photoSlot = (photo: Pick<Photo, 'id' | 'name'>): Slot => ({
   photoId: photo.id,
   name: photo.name,
   url: photoPreviewUrl(photo.id),
@@ -116,7 +117,16 @@ export function SheetPage() {
   const [error, setError] = useState<string | null>(null);
   const [paperId, setPaperId] = useState<string | null>(null);
   const [bleedText, setBleedText] = useState(String(loadBleed() ?? DEFAULT_BLEED_MM));
-  const [slots, setSlots] = useState<Record<number, Slot>>({});
+  // リロードしても、フォトストレージの写真と編集は残す（手元のファイルは残せない）
+  const [saved] = useState(loadWork);
+  const [slots, setSlots] = useState<Record<number, Slot>>(() =>
+    Object.fromEntries(
+      Object.entries(saved.slots).map(([i, s]) => [
+        i,
+        { ...photoSlot({ id: s.photoId, name: s.name }), edit: s.edit },
+      ]),
+    ),
+  );
   const [preview, setPreview] = useState<{ url: string; warnings: string[]; key: string } | null>(
     null,
   );
@@ -147,7 +157,10 @@ export function SheetPage() {
     fetchPapers(ctrl.signal)
       .then((list) => {
         setPapers(list);
-        setPaperId(list.find((p) => p.printable)?.id ?? null);
+        setPaperId(
+          (list.find((p) => p.id === saved.paperId && p.printable) ?? list.find((p) => p.printable))
+            ?.id ?? null,
+        );
       })
       .catch((e: unknown) => {
         if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : String(e));
@@ -173,6 +186,19 @@ export function SheetPage() {
       });
     }
   }, [slots]);
+
+  // 作業中のシートを保存する
+  useEffect(() => {
+    if (!papers) return; // 用紙を読むまでは、保存済みの用紙を消さない
+    saveWork({
+      paperId,
+      slots: Object.fromEntries(
+        Object.entries(slots)
+          .filter(([, s]) => s.photoId)
+          .map(([i, s]) => [i, { photoId: s.photoId!, name: s.name, edit: s.edit }]),
+      ),
+    });
+  }, [papers, paperId, slots]);
 
   const paper = papers?.find((p) => p.id === paperId) ?? null;
   const cells = paper?.cells ?? [];
