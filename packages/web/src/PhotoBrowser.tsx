@@ -3,20 +3,19 @@ import { fetchAlbums, fetchPhotos, photoThumbnailUrl, type Album, type Photo } f
 import {
   appendPage,
   DRAG_TYPE,
-  draggedPhotos,
   EMPTY_LIST,
   formatTakenAt,
   groupByDay,
-  toggleSelection,
   type PhotoListState,
 } from './photoList';
 
 interface Props {
-  /** 選択中の写真（選んだ順） */
-  selected: Photo[];
-  onSelectedChange: (photos: Photo[]) => void;
-  /** 選択中の写真を、空いているコマに流し込む */
-  onPour: () => void;
+  /** 写真を押したとき。空いているコマに入れる */
+  onPick: (photo: Photo) => void;
+  /** 写真の id ごとの、コマに入っている数 */
+  placed: Map<string, number>;
+  /** 空いているコマがない（押しても入らない） */
+  full: boolean;
 }
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -27,9 +26,9 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
  */
 function PhotoGrid({
   albumId,
-  selected,
-  onSelectedChange,
-}: Pick<Props, 'selected' | 'onSelectedChange'> & { albumId?: string }) {
+  onPick,
+  placed,
+}: Pick<Props, 'onPick' | 'placed'> & { albumId?: string }) {
   const [list, setList] = useState<PhotoListState>(EMPTY_LIST);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +69,6 @@ function PhotoGrid({
     // list.photos.length: 読み足しても末尾がまだ見えているとき、見張り直して続きを読む
   }, [loadMore, error, list.cursor, list.photos.length]);
 
-  const selectedIds = new Set(selected.map((p) => p.id));
   return (
     <div className="photo-scroll" ref={scroller}>
       {groupByDay(list.photos).map((g, i) => (
@@ -82,25 +80,26 @@ function PhotoGrid({
           </h3>
           <ul className="photo-grid">
             {g.photos.map((p) => {
-              const order = selected.findIndex((s) => s.id === p.id);
+              const count = placed.get(p.id) ?? 0;
               const label = [p.name, formatTakenAt(p.takenAt)].filter(Boolean).join(' ');
               return (
                 <li key={p.id}>
                   <button
                     type="button"
-                    className="thumb"
-                    aria-pressed={selectedIds.has(p.id)}
-                    aria-label={label || '写真'}
+                    className={count > 0 ? 'thumb placed' : 'thumb'}
+                    aria-label={
+                      (label || '写真') + (count > 0 ? `（${count} コマに入っています）` : '')
+                    }
                     title={label}
                     draggable
                     onDragStart={(e) => {
-                      e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(draggedPhotos(selected, p)));
+                      e.dataTransfer.setData(DRAG_TYPE, JSON.stringify([p]));
                       e.dataTransfer.effectAllowed = 'copy';
                     }}
-                    onClick={() => onSelectedChange(toggleSelection(selected, p))}
+                    onClick={() => onPick(p)}
                   >
                     <img src={photoThumbnailUrl(p.id)} alt="" loading="lazy" draggable={false} />
-                    {order >= 0 && <span className="badge">{order + 1}</span>}
+                    {count > 0 && <span className="badge">{count > 1 ? `✓${count}` : '✓'}</span>}
                   </button>
                 </li>
               );
@@ -177,7 +176,7 @@ function AlbumList({ onOpen }: { onOpen: (album: Album) => void }) {
 }
 
 /** フォトストレージ（Immich）の写真リスト。タイムラインとアルバムを切り替えて、写真を選ぶ。 */
-export function PhotoBrowser({ selected, onSelectedChange, onPour }: Props) {
+export function PhotoBrowser({ onPick, placed, full }: Props) {
   const [view, setView] = useState<'timeline' | 'albums'>('timeline');
   const [album, setAlbum] = useState<Album | null>(null);
 
@@ -203,7 +202,7 @@ export function PhotoBrowser({ selected, onSelectedChange, onPour }: Props) {
       </div>
 
       {view === 'timeline' ? (
-        <PhotoGrid selected={selected} onSelectedChange={onSelectedChange} />
+        <PhotoGrid onPick={onPick} placed={placed} />
       ) : album ? (
         <>
           <div className="album-head">
@@ -212,33 +211,23 @@ export function PhotoBrowser({ selected, onSelectedChange, onPour }: Props) {
             </button>
             <b>{album.name || '（名前なし）'}</b>
           </div>
-          <PhotoGrid
-            key={album.id}
-            albumId={album.id}
-            selected={selected}
-            onSelectedChange={onSelectedChange}
-          />
+          <PhotoGrid key={album.id} albumId={album.id} onPick={onPick} placed={placed} />
         </>
       ) : (
         <AlbumList onOpen={setAlbum} />
       )}
 
-      <div className="photo-actions">
-        <button
-          type="button"
-          className="button primary"
-          disabled={selected.length === 0}
-          onClick={onPour}
-        >
-          選んだ {selected.length} 枚を空いたコマに入れる
-        </button>
-        <button type="button" disabled={selected.length === 0} onClick={() => onSelectedChange([])}>
-          選択を解除
-        </button>
-      </div>
-      <p className="note">
-        写真を押して選ぶ（複数可）。コマへドラッグするか、選んでからコマを押しても入ります。
-      </p>
+      {full ? (
+        <p role="status" className="invalid">
+          空いているコマがありません。入れ替えるときは、コマの ×
+          で外すか、写真をコマへドラッグしてください。
+        </p>
+      ) : (
+        <p className="note">
+          写真を押すと、空いているコマに入ります（✓:
+          入っている写真）。決まったコマに入れるときは、そのコマへドラッグしてください。
+        </p>
+      )}
     </section>
   );
 }

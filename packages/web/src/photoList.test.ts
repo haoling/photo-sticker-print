@@ -2,13 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { Photo } from './api';
 import {
   appendPage,
-  draggedPhotos,
   EMPTY_LIST,
   dayLabel,
   formatTakenAt,
   groupByDay,
   parseDragData,
-  toggleSelection,
 } from './photoList';
 
 const photo = (id: string): Photo => ({
@@ -29,17 +27,7 @@ describe('appendPage', () => {
   });
 });
 
-describe('選択とドラッグ', () => {
-  it('toggleSelection: 選んだ順を保ち、もう一度押すと外れる', () => {
-    expect(toggleSelection(toggleSelection([], b), a)).toEqual([b, a]);
-    expect(toggleSelection([b, a], b)).toEqual([a]);
-  });
-
-  it('draggedPhotos: 選択中の写真をつかむと全部（つかんだ写真が先頭）、選択外なら 1 枚', () => {
-    expect(draggedPhotos([a, b], b)).toEqual([b, a]);
-    expect(draggedPhotos([a, b], c)).toEqual([c]);
-  });
-
+describe('ドラッグ', () => {
   it('parseDragData: 形の違うデータは捨てる', () => {
     expect(parseDragData(JSON.stringify([a, { id: '../x' }, 1, null]))).toEqual([a]);
     expect(parseDragData('{')).toEqual([]);

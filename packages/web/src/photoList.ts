@@ -24,20 +24,6 @@ export function appendPage(
   };
 }
 
-/** 選択の切り替え。選んだ順を保つ（流し込む順になる） */
-export function toggleSelection(selected: Photo[], photo: Photo): Photo[] {
-  return selected.some((p) => p.id === photo.id)
-    ? selected.filter((p) => p.id !== photo.id)
-    : [...selected, photo];
-}
-
-/** ドラッグで運ぶ写真。選択中の写真をつかんだら選択中の全部、そうでなければその 1 枚 */
-export function draggedPhotos(selected: Photo[], photo: Photo): Photo[] {
-  return selected.some((p) => p.id === photo.id)
-    ? [photo, ...selected.filter((p) => p.id !== photo.id)]
-    : [photo];
-}
-
 export const DRAG_TYPE = 'application/x-photo-sticker-print';
 
 /** ドラッグで受け取ったデータを読む。形が違えば空 */
