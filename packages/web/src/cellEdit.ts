@@ -93,3 +93,53 @@ export function previewLayout(
     transform: `translate(-50%, -50%) scaleX(${edit.flipH ? -1 : 1}) rotate(${edit.rotation}deg)`,
   };
 }
+
+/** 拡大率を範囲内（1〜8）にして返す */
+export const withZoom = (edit: CellEdit, zoom: number): CellEdit => ({
+  ...edit,
+  zoom: clamp(zoom, MIN_ZOOM, MAX_ZOOM),
+});
+
+/** 左右反転を切り替える。切り抜きの中心も、見た目の位置が変わらないよう左右を入れ替える */
+export const toggleFlip = (edit: CellEdit): CellEdit => ({
+  ...edit,
+  flipH: !edit.flipH,
+  focusX: 1 - edit.focusX,
+});
+
+const ROTATIONS = [0, 90, 180, 270] as const;
+
+/**
+ * 90° 単位で回す（時計回りが正）。反転は回転のあとに行う決まりなので、反転しているときは
+ * 見た目の回す向きと保存する回転の向きが逆になる。切り抜きの中心は、見た目の位置が変わらないよう追従させる。
+ */
+export function rotateEdit(edit: CellEdit, quarterTurnsClockwise: 1 | -1): CellEdit {
+  // 見た目で時計回りに回す = 反転前の座標では、反転していれば反時計回り
+  const turn = edit.flipH ? -quarterTurnsClockwise : quarterTurnsClockwise;
+  const rotation = ROTATIONS[(ROTATIONS.indexOf(edit.rotation) + turn + 4) % 4]!;
+  // 見た目（反転後）の中心を、見た目で回す。(x, y) → 時計回り (1 - y, x)、反時計回り (y, 1 - x)
+  const { focusX: x, focusY: y } = edit;
+  const [focusX, focusY] = quarterTurnsClockwise === 1 ? [1 - y, x] : [y, 1 - x];
+  return { ...edit, rotation, focusX, focusY };
+}
+
+/**
+ * 枠の上でのドラッグ量から、切り抜きの中心を動かす。写真がポインタについてくるように動くので、
+ * 中心は逆向きに動く。dx / dy は枠（塗り足しを含む範囲 box）の幅・高さに対する割合。
+ */
+export function panEdit(
+  img: { w: number; h: number },
+  box: { w: number; h: number },
+  edit: CellEdit,
+  dx: number,
+  dy: number,
+): CellEdit {
+  const r = cropRect(img, box, edit);
+  const left = clamp(r.left - dx * r.width, 0, r.orientedW - r.width);
+  const top = clamp(r.top - dy * r.height, 0, r.orientedH - r.height);
+  return {
+    ...edit,
+    focusX: (left + r.width / 2) / r.orientedW,
+    focusY: (top + r.height / 2) / r.orientedH,
+  };
+}

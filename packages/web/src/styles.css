@@ -394,7 +394,7 @@ button:disabled,
 .tp.with-photos {
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(300px, 400px);
 }
-.photos {
+.side {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -403,11 +403,25 @@ button:disabled,
   height: calc(100vh - 16px);
   min-height: 320px;
 }
+.side-pane {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.side-pane[hidden] {
+  display: none;
+}
+.photos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
 @media (max-width: 1180px) {
   .tp.with-photos {
     grid-template-columns: minmax(260px, 340px) 1fr;
   }
-  .photos {
+  .side {
     grid-column: 1 / -1;
     position: static;
     height: 70vh;
@@ -417,7 +431,7 @@ button:disabled,
   .tp.with-photos {
     grid-template-columns: minmax(0, 1fr);
   }
-  .photos {
+  .side {
     order: -1;
     height: 60vh;
   }
@@ -594,4 +608,36 @@ button:disabled,
 .sheet .cell.drop {
   background: rgb(37 99 235 / 0.3);
   outline: 3px solid #2563eb;
+}
+
+/* コマの編集 */
+.sheet .cell.selected {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 2px rgb(37 99 235 / 0.35);
+  cursor: grab;
+  touch-action: none;
+}
+.sheet .cell.selected:active {
+  cursor: grabbing;
+}
+.cell-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.editor-name {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button[aria-pressed='true'] {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
 }
