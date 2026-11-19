@@ -1,5 +1,5 @@
 {
-  "description": "編集パラメータ（拡大率・中心・回転・左右反転）から、写真のどの範囲を切り抜くかを求める計算のゴールデンケース。サーバー（packages/server/src/print/cellEdit.ts）と画面（packages/web/src/cellEdit.ts）の両方のテストが、このファイルを読んで、同じ値になることを確かめる。計算: 回転後の寸法 (ow, oh) で、s = max(box.w/ow, box.h/oh) × zoom、窓 = (box.w/s, box.h/s)、窓の中心 = (focusX×ow, focusY×oh) を、画像の内側に収める。zoom は 1〜8、focusX / focusY は 0〜1 に収めてから計算する。left/top/width/height は回転・反転後の画像の座標（画素）。",
+  "description": "編集パラメータ（拡大率・中心・回転・左右反転）から、写真のどの範囲を切り抜くかを求める計算のゴールデンケース。サーバー（packages/server/src/print/cellEdit.ts）と画面（packages/web/src/cellEdit.ts）の両方のテストが、このファイルを読んで、同じ値になることを確かめる。計算: 回転後の寸法 (ow, oh) で、s = max(box.w/ow, box.h/oh) × zoom、窓 = (box.w/s, box.h/s)、窓の中心 = (focusX×ow, focusY×oh) を、画像の内側に収める（窓が画像より大きい縮小のときは、画像が窓の内側に収まる範囲に収める。left / top は負になり、画像のない部分は白で埋める）。zoom は 0.25〜8、focusX / focusY は 0〜1 に収めてから計算する。left/top/width/height は回転・反転後の画像の座標（画素）。",
   "cases": [
     {
       "name": "横長の写真を既定で",
@@ -299,8 +299,8 @@
       }
     },
     {
-      "name": "拡大の下限（1 未満は 1）",
-      "note": "",
+      "name": "縮小の下限（0.25 より小さくしても 0.25）",
+      "note": "範囲外の zoom は 0.25 に収める",
       "image": {
         "w": 1800,
         "h": 1200
@@ -310,7 +310,7 @@
         "h": 25
       },
       "edit": {
-        "zoom": 0.5,
+        "zoom": 0.1,
         "focusX": 0.5,
         "focusY": 0.5,
         "rotation": 0,
@@ -319,10 +319,10 @@
       "expected": {
         "orientedW": 1800,
         "orientedH": 1200,
-        "left": 108.0,
-        "top": 0.0,
-        "width": 1584.0,
-        "height": 1200.0
+        "left": -2268.0,
+        "top": -1800.0,
+        "width": 6336.0,
+        "height": 4800.0
       }
     },
     {
@@ -404,6 +404,33 @@
         "top": 16.129032,
         "width": 4000.0,
         "height": 2967.741935
+      }
+    },
+    {
+      "name": "縮小（0.5 倍）で窓が写真より大きくなる",
+      "note": "横長の写真を 0.5 倍。窓は写真全体より大きく、左右・上下に余白（白）が出る。中心は写真の中央",
+      "image": {
+        "w": 1800,
+        "h": 1200
+      },
+      "box": {
+        "w": 33,
+        "h": 25
+      },
+      "edit": {
+        "zoom": 0.5,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "rotation": 0,
+        "flipH": false
+      },
+      "expected": {
+        "orientedW": 1800,
+        "orientedH": 1200,
+        "left": -684.0,
+        "top": -600.0,
+        "width": 3168.0,
+        "height": 2400.0
       }
     }
   ]

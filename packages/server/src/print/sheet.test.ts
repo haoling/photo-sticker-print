@@ -228,6 +228,15 @@ describe('renderSheetPng の編集パラメータ', () => {
     }
   });
 
+  it('0.5 倍に縮小すると、写真の外（コマの上下）は白になり、中央には写真が出る', async () => {
+    const at = await render(await quadrants(800, 400), { ...DEFAULT_EDIT, zoom: 0.5 });
+    const WHITE = [255, 255, 255];
+    expect(near(at(cx, cy - CELL0.h * 0.4), WHITE)).toBe(true);
+    expect(near(at(cx, cy + CELL0.h * 0.4), WHITE)).toBe(true);
+    expect(near(at(cx - 5, cy - 3), RED)).toBe(true);
+    expect(near(at(cx + 5, cy + 3), YELLOW)).toBe(true);
+  });
+
   it('既定の編集（拡大 1）では、4 つの角の色がコマの四隅に出る', async () => {
     const at = await render(await quadrants(800, 400), DEFAULT_EDIT);
     expect(near(at(cx - 10, cy - 8), RED)).toBe(true);

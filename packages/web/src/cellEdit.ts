@@ -4,11 +4,11 @@
  * 画面のプレビューと、サーバーが作る印刷画像がずれないようにするための共通の形式。
  */
 
-export const MIN_ZOOM = 1;
+export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 8;
 
 export interface CellEdit {
-  /** 拡大率。1 = 枠いっぱいに敷く（中央を基準に切り抜く）、2 = 2 倍に拡大（1〜8） */
+  /** 拡大率。1 = 枠いっぱいに敷く（中央を基準に切り抜く）、2 = 2 倍に拡大、1 より小さいと縮小して余白が白になる（0.25〜8） */
   zoom: number;
   /** 切り抜きの中心。回転・反転後の写真の左上を 0、右下を 1 とする（0.5 = 中央） */
   focusX: number;
@@ -47,6 +47,13 @@ export interface CropRect {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
+/**
+ * 窓の端（start）を収める。窓が写真より小さければ写真の内側、大きければ（縮小したとき）写真が窓の内側に
+ * 収まる範囲。後者では left / top が負になり、窓のうち写真のない部分は白になる。
+ */
+export const clampWindow = (start: number, total: number, window: number) =>
+  clamp(start, Math.min(0, total - window), Math.max(0, total - window));
+
 /** 写真のうち、塗り足しを含む範囲 box にどこを敷くか。窓の縦横比は box と同じ。 */
 export function cropRect(
   img: { w: number; h: number },
@@ -63,8 +70,8 @@ export function cropRect(
   return {
     orientedW: ow,
     orientedH: oh,
-    left: clamp(clamp(edit.focusX, 0, 1) * ow - width / 2, 0, ow - width),
-    top: clamp(clamp(edit.focusY, 0, 1) * oh - height / 2, 0, oh - height),
+    left: clampWindow(clamp(edit.focusX, 0, 1) * ow - width / 2, ow, width),
+    top: clampWindow(clamp(edit.focusY, 0, 1) * oh - height / 2, oh, height),
     width,
     height,
   };
@@ -135,11 +142,11 @@ export function panEdit(
   dy: number,
 ): CellEdit {
   const r = cropRect(img, box, edit);
-  const left = clamp(r.left - dx * r.width, 0, r.orientedW - r.width);
-  const top = clamp(r.top - dy * r.height, 0, r.orientedH - r.height);
+  const left = clampWindow(r.left - dx * r.width, r.orientedW, r.width);
+  const top = clampWindow(r.top - dy * r.height, r.orientedH, r.height);
   return {
     ...edit,
-    focusX: (left + r.width / 2) / r.orientedW,
-    focusY: (top + r.height / 2) / r.orientedH,
+    focusX: clamp((left + r.width / 2) / r.orientedW, 0, 1),
+    focusY: clamp((top + r.height / 2) / r.orientedH, 0, 1),
   };
 }

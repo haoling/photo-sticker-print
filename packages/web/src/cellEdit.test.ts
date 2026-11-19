@@ -75,8 +75,9 @@ describe('編集の操作', () => {
   const img = { w: 1800, h: 1200 };
   const box = { w: 33, h: 25 };
 
-  it('拡大率は 1〜8 に収める', () => {
-    expect(withZoom(DEFAULT_EDIT, 0.2).zoom).toBe(1);
+  it('拡大率は 0.25〜8 に収める', () => {
+    expect(withZoom(DEFAULT_EDIT, 0.1).zoom).toBe(0.25);
+    expect(withZoom(DEFAULT_EDIT, 0.5).zoom).toBe(0.5);
     expect(withZoom(DEFAULT_EDIT, 3).zoom).toBe(3);
     expect(withZoom(DEFAULT_EDIT, 99).zoom).toBe(8);
   });
@@ -131,5 +132,15 @@ describe('編集の操作', () => {
   it('拡大していなければ、はみ出す方向には動かない', () => {
     const e = panEdit(img, box, DEFAULT_EDIT, 0.3, 0.3);
     expect(e.focusY).toBeCloseTo(0.5, 9); // 縦は全体が収まっているので動かない
+  });
+
+  it('縮小すると、写真が窓の内側に収まる範囲で動かせる（外へは出ない）', () => {
+    const small = { ...DEFAULT_EDIT, zoom: 0.5 };
+    const e = panEdit(img, box, small, -5, -5);
+    const r = cropRect(img, box, e);
+    expect(r.left).toBeCloseTo(0, 6); // 写真の左上が窓の左上に付いて止まる
+    expect(r.top).toBeCloseTo(0, 6);
+    expect(e.focusX).toBeGreaterThanOrEqual(0);
+    expect(e.focusX).toBeLessThanOrEqual(1);
   });
 });
