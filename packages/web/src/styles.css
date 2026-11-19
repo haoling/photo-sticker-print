@@ -442,6 +442,22 @@ button:disabled,
   padding: 0;
   list-style: none;
 }
+.photo-day + .photo-day {
+  margin-top: 8px;
+}
+.photo-day-head {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  margin: -4px -4px 4px;
+  padding: 6px 8px 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--panel);
+}
+.photo-day + .photo-day .photo-day-head {
+  margin-top: 0;
+}
 .thumb {
   position: relative;
   display: block;

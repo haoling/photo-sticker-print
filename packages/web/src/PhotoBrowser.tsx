@@ -6,6 +6,7 @@ import {
   draggedPhotos,
   EMPTY_LIST,
   formatTakenAt,
+  groupByDay,
   toggleSelection,
   type PhotoListState,
 } from './photoList';
@@ -72,32 +73,41 @@ function PhotoGrid({
   const selectedIds = new Set(selected.map((p) => p.id));
   return (
     <div className="photo-scroll" ref={scroller}>
-      <ul className="photo-grid">
-        {list.photos.map((p) => {
-          const order = selected.findIndex((s) => s.id === p.id);
-          const label = [p.name, formatTakenAt(p.takenAt)].filter(Boolean).join(' ');
-          return (
-            <li key={p.id}>
-              <button
-                type="button"
-                className="thumb"
-                aria-pressed={selectedIds.has(p.id)}
-                aria-label={label || '写真'}
-                title={label}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(draggedPhotos(selected, p)));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-                onClick={() => onSelectedChange(toggleSelection(selected, p))}
-              >
-                <img src={photoThumbnailUrl(p.id)} alt="" loading="lazy" draggable={false} />
-                {order >= 0 && <span className="badge">{order + 1}</span>}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      {groupByDay(list.photos).map((g, i) => (
+        // 日付なしのまとまりは途中にもできうるので、key に位置も入れる
+        <section key={`${g.key}#${i}`} className="photo-day" aria-label={g.label}>
+          <h3 className="photo-day-head">
+            {g.label}
+            <span className="note"> {g.photos.length} 枚</span>
+          </h3>
+          <ul className="photo-grid">
+            {g.photos.map((p) => {
+              const order = selected.findIndex((s) => s.id === p.id);
+              const label = [p.name, formatTakenAt(p.takenAt)].filter(Boolean).join(' ');
+              return (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    className="thumb"
+                    aria-pressed={selectedIds.has(p.id)}
+                    aria-label={label || '写真'}
+                    title={label}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(draggedPhotos(selected, p)));
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    onClick={() => onSelectedChange(toggleSelection(selected, p))}
+                  >
+                    <img src={photoThumbnailUrl(p.id)} alt="" loading="lazy" draggable={false} />
+                    {order >= 0 && <span className="badge">{order + 1}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
       {error ? (
         <p role="alert" className="invalid">
           {error}{' '}

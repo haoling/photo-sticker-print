@@ -62,3 +62,42 @@ export function formatTakenAt(takenAt: string | null): string {
   const m = takenAt ? /^(\d{4})-(\d{2})-(\d{2})/.exec(takenAt) : null;
   return m ? `${m[1]}/${m[2]}/${m[3]}` : '';
 }
+
+/** 撮影日ごとのまとまり（一覧の見出しの単位） */
+export interface PhotoDayGroup {
+  /** YYYY-MM-DD。日付のない写真は '' */
+  key: string;
+  /** 見出し（例: 2026年1月5日（月）） */
+  label: string;
+  photos: Photo[];
+}
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
+/**
+ * 撮影日の見出し。takenAt は Immich の localDateTime（撮影地の時刻を Z 付きで表したもの）なので、
+ * タイムゾーンで変換せず、先頭の日付をそのまま使う。
+ */
+export function dayLabel(key: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!m) return '日付なし';
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const w = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
+  return `${y}年${mo}月${d}日（${WEEKDAYS[w]}）`;
+}
+
+/**
+ * 並んだ順のまま、同じ撮影日が続くところをひとまとめにする（一覧は撮影日の新しい順で来る）。
+ * 並べ替えはしないので、無限スクロールで読み足しても、前のまとまりの位置は動かない。
+ */
+export function groupByDay(photos: Photo[]): PhotoDayGroup[] {
+  const groups: PhotoDayGroup[] = [];
+  for (const p of photos) {
+    const m = p.takenAt ? /^(\d{4}-\d{2}-\d{2})/.exec(p.takenAt) : null;
+    const key = m?.[1] ?? '';
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.photos.push(p);
+    else groups.push({ key, label: dayLabel(key), photos: [p] });
+  }
+  return groups;
+}
