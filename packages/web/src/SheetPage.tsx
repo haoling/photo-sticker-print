@@ -121,7 +121,6 @@ export function SheetPage() {
   );
   const [busy, setBusy] = useState<SheetFormat | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Photo[]>([]);
   const [dropTarget, setDropTarget] = useState<number | null>(null);
   const bulkInput = useRef<HTMLInputElement>(null);
   const slotInput = useRef<HTMLInputElement>(null);
@@ -215,10 +214,14 @@ export function SheetPage() {
     const entries = list.map(photoSlot);
     if (target !== undefined && entries.length > 0) setSlot(target, entries.shift()!);
     addSlots(entries);
-    // 入れた写真は、選択から外す
-    const placed = new Set(list.map((p) => p.id));
-    setSelected((cur) => cur.filter((p) => !placed.has(p.id)));
   };
+  // 写真リストに、どの写真がいくつのコマに入っているかを出す
+  const placed = new Map<string, number>();
+  for (const [i, s] of Object.entries(slots)) {
+    if (s.photoId && Number(i) < cells.length)
+      placed.set(s.photoId, (placed.get(s.photoId) ?? 0) + 1);
+  }
+  const full = photos.length >= cells.length;
   const clearSlot = (index: number) =>
     setSlots((cur) => {
       if (cur[index]) release(cur[index]);
@@ -351,7 +354,7 @@ export function SheetPage() {
           </div>
           <p className="note">
             {photos.length} / {cells.length}{' '}
-            コマ。写真リストから選ぶか、手元のファイルを使えます。コマを押すと、そのコマに手元のファイルを選べます。
+            コマ。写真リストの写真を押すと空いたコマに入ります。手元のファイルも使えます。コマを押すと、そのコマに手元のファイルを選べます。
           </p>
         </fieldset>
 
@@ -499,8 +502,6 @@ export function SheetPage() {
                         borderRadius: `${(c.cornerRadiusMm * 100) / W}cqw`,
                       }}
                       onClick={() => {
-                        // 写真リストで選んでいれば、その 1 枚目を入れる。選んでいなければ手元のファイル
-                        if (selected.length > 0) return placePhotos([selected[0]!], c.index);
                         slotTarget.current = c.index;
                         slotInput.current?.click();
                       }}
@@ -585,9 +586,9 @@ export function SheetPage() {
       </section>
 
       <PhotoBrowser
-        selected={selected}
-        onSelectedChange={setSelected}
-        onPour={() => placePhotos(selected)}
+        onPick={(photo) => placePhotos([photo])}
+        placed={placed}
+        full={!!paper && full}
       />
     </div>
   );

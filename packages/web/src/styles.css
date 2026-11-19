@@ -477,11 +477,11 @@ button:disabled,
   height: 100%;
   object-fit: cover;
 }
-.thumb[aria-pressed='true'] {
+.thumb.placed {
   outline: 3px solid var(--accent);
   outline-offset: -3px;
 }
-.thumb[aria-pressed='true'] img {
+.thumb.placed img {
   opacity: 0.75;
 }
 .thumb .badge {
@@ -538,11 +538,6 @@ button:disabled,
   align-items: center;
   gap: 10px;
   min-width: 0;
-}
-.photo-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 .sheet .cell.drop {
   background: rgb(37 99 235 / 0.3);
