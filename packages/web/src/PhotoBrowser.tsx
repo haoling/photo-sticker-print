@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchAlbums, fetchPhotos, photoThumbnailUrl, type Album, type Photo } from './api';
+import {
+  fetchAlbums,
+  fetchPhotos,
+  photoPreviewUrl,
+  photoThumbnailUrl,
+  type Album,
+  type Photo,
+} from './api';
 import {
   appendPage,
   DRAG_TYPE,
@@ -18,6 +25,32 @@ interface Props {
   full: boolean;
 }
 
+/** 写真を大きく見るための表示。背景・×・Esc で閉じる */
+function PhotoPreview({ photo, onClose }: { photo: Photo; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const label = [photo.name, formatTakenAt(photo.takenAt)].filter(Boolean).join(' ');
+  return (
+    <div
+      className="preview-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="写真のプレビュー"
+      onClick={onClose}
+    >
+      <img src={photoPreviewUrl(photo.id)} alt={label} />
+      <button type="button" className="preview-close" aria-label="閉じる" onClick={onClose}>
+        ×
+      </button>
+    </div>
+  );
+}
+
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
@@ -32,6 +65,8 @@ function PhotoGrid({
   const [list, setList] = useState<PhotoListState>(EMPTY_LIST);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Photo | null>(null);
+  const closePreview = useCallback(() => setPreview(null), []);
   const scroller = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   // 読み込み中かどうかと、今の一覧。IntersectionObserver から最新の値を見るために ref に持つ
@@ -83,7 +118,7 @@ function PhotoGrid({
               const count = placed.get(p.id) ?? 0;
               const label = [p.name, formatTakenAt(p.takenAt)].filter(Boolean).join(' ');
               return (
-                <li key={p.id}>
+                <li key={p.id} className="thumb-item">
                   <button
                     type="button"
                     className={count > 0 ? 'thumb placed' : 'thumb'}
@@ -100,6 +135,15 @@ function PhotoGrid({
                   >
                     <img src={photoThumbnailUrl(p.id)} alt="" loading="lazy" draggable={false} />
                     {count > 0 && <span className="badge">{count > 1 ? `✓${count}` : '✓'}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    className="thumb-preview"
+                    aria-label={`${label || '写真'}をプレビュー`}
+                    title="プレビュー"
+                    onClick={() => setPreview(p)}
+                  >
+                    🔍
                   </button>
                 </li>
               );
@@ -122,6 +166,7 @@ function PhotoGrid({
         <p className="note legend">{loading ? '読み込み中…' : ''}</p>
       )}
       <div ref={sentinel} className="sentinel" />
+      {preview && <PhotoPreview photo={preview} onClose={closePreview} />}
     </div>
   );
 }
