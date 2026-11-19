@@ -84,16 +84,46 @@ async function oriented(
   } else if (edit.rotation) {
     pipeline = pipeline.rotate(edit.rotation);
   }
-  const left = Math.min(Math.round(r.left), r.orientedW - 1);
-  const top = Math.min(Math.round(r.top), r.orientedH - 1);
-  return pipeline
-    .extract({
-      left,
-      top,
-      width: Math.max(1, Math.min(Math.round(r.width), r.orientedW - left)),
-      height: Math.max(1, Math.min(Math.round(r.height), r.orientedH - top)),
-    })
-    .toBuffer();
+  const x = axis(r.left, r.width, r.orientedW);
+  const y = axis(r.top, r.height, r.orientedH);
+  pipeline = pipeline.extract({ left: x.src, top: y.src, width: x.len, height: y.len });
+  if (x.before || x.after || y.before || y.after) {
+    // 縮小したとき、写真のない部分は白にする
+    pipeline = pipeline.extend({
+      left: x.before,
+      right: x.after,
+      top: y.before,
+      bottom: y.after,
+      background: '#ffffff',
+    });
+  }
+  return pipeline.toBuffer();
+}
+
+/**
+ * 窓（start から size、画素）を、写真（total 画素）から切り出す範囲と、足りない分の余白に分ける。
+ * 窓が写真に収まるときは余白なし（丸めで端をはみ出さないよう、切り出しの幅で調整する）。
+ */
+function axis(start: number, size: number, total: number) {
+  if (size <= total) {
+    const src = Math.min(Math.round(start), total - 1);
+    return {
+      src,
+      len: Math.max(1, Math.min(Math.round(size), total - src)),
+      before: 0,
+      after: 0,
+    };
+  }
+  const winStart = Math.round(start);
+  const winLen = Math.round(size);
+  const src = Math.max(0, winStart);
+  const end = Math.min(total, winStart + winLen);
+  return {
+    src,
+    len: Math.max(1, end - src),
+    before: src - winStart,
+    after: winStart + winLen - Math.max(end, src + 1),
+  };
 }
 
 function normalizeOptions(opts: SheetOptions) {

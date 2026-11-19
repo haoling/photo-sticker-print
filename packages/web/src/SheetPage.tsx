@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_EDIT, previewLayout, type CellEdit } from './cellEdit';
+import { CellEditor } from './CellEditor';
+import { DEFAULT_EDIT, panEdit, previewLayout, type CellEdit } from './cellEdit';
 import {
   fetchPapers,
   photoPreviewUrl,
@@ -21,6 +22,7 @@ import {
   parseBleed,
 } from './sheetLayout';
 import { loadBleed, loadState, saveBleed } from './storage';
+import { loadWork, saveWork } from './workState';
 
 interface Slot {
   /** 手元のファイル。フォトストレージの写真なら無い */
@@ -29,7 +31,7 @@ interface Slot {
   photoId?: string;
   name: string;
   url: string;
-  /** 拡大・位置・回転・左右反転（編集の画面ができるまでは、いつも既定） */
+  /** 拡大・位置・回転・左右反転 */
   edit: CellEdit;
   /** 写真の大きさ（画素。EXIF の向きを反映したもの）。読み込めるまでは未定 */
   size?: { w: number; h: number };
@@ -51,7 +53,7 @@ const fileSlot = (file: File): Slot => ({
   url: URL.createObjectURL(file),
   edit: DEFAULT_EDIT,
 });
-const photoSlot = (photo: Photo): Slot => ({
+const photoSlot = (photo: Pick<Photo, 'id' | 'name'>): Slot => ({
   photoId: photo.id,
   name: photo.name,
   url: photoPreviewUrl(photo.id),
@@ -115,7 +117,16 @@ export function SheetPage() {
   const [error, setError] = useState<string | null>(null);
   const [paperId, setPaperId] = useState<string | null>(null);
   const [bleedText, setBleedText] = useState(String(loadBleed() ?? DEFAULT_BLEED_MM));
-  const [slots, setSlots] = useState<Record<number, Slot>>({});
+  // リロードしても、フォトストレージの写真と編集は残す（手元のファイルは残せない）
+  const [saved] = useState(loadWork);
+  const [slots, setSlots] = useState<Record<number, Slot>>(() =>
+    Object.fromEntries(
+      Object.entries(saved.slots).map(([i, s]) => [
+        i,
+        { ...photoSlot({ id: s.photoId, name: s.name }), edit: s.edit },
+      ]),
+    ),
+  );
   const [preview, setPreview] = useState<{ url: string; warnings: string[]; key: string } | null>(
     null,
   );
@@ -125,6 +136,10 @@ export function SheetPage() {
   const bulkInput = useRef<HTMLInputElement>(null);
   const slotInput = useRef<HTMLInputElement>(null);
   const slotTarget = useRef<number | null>(null);
+  /** 編集中のコマ（0 始まり）と、右の列で開いているタブ */
+  const [selected, setSelected] = useState<number | null>(null);
+  const [side, setSide] = useState<'photos' | 'edit'>('photos');
+  const drag = useRef<{ x: number; y: number } | null>(null);
 
   // 画面を閉じるとき、作った一時 URL を解放する
   const latest = useRef({ slots, preview });
@@ -142,7 +157,10 @@ export function SheetPage() {
     fetchPapers(ctrl.signal)
       .then((list) => {
         setPapers(list);
-        setPaperId(list.find((p) => p.printable)?.id ?? null);
+        setPaperId(
+          (list.find((p) => p.id === saved.paperId && p.printable) ?? list.find((p) => p.printable))
+            ?.id ?? null,
+        );
       })
       .catch((e: unknown) => {
         if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : String(e));
@@ -168,6 +186,19 @@ export function SheetPage() {
       });
     }
   }, [slots]);
+
+  // 作業中のシートを保存する
+  useEffect(() => {
+    if (!papers) return; // 用紙を読むまでは、保存済みの用紙を消さない
+    saveWork({
+      paperId,
+      slots: Object.fromEntries(
+        Object.entries(slots)
+          .filter(([, s]) => s.photoId)
+          .map(([i, s]) => [i, { photoId: s.photoId!, name: s.name, edit: s.edit }]),
+      ),
+    });
+  }, [papers, paperId, slots]);
 
   const paper = papers?.find((p) => p.id === paperId) ?? null;
   const cells = paper?.cells ?? [];
@@ -238,6 +269,34 @@ export function SheetPage() {
     if (!first) return;
     Object.values(slots).forEach((s) => s !== first && s.url !== first.url && release(s));
     setSlots(fillAll(first, cells.length));
+  };
+
+  const select = (index: number | null) => {
+    setSelected(index);
+    setSide(index === null ? 'photos' : 'edit');
+  };
+  const updateEdit = (index: number, edit: CellEdit) =>
+    setSlots((cur) => (cur[index] ? { ...cur, [index]: { ...cur[index]!, edit } } : cur));
+  /** 2 つのコマの写真を入れ替える（片方が空なら移す）。編集も写真について行く */
+  const swapCells = (a: number, b: number) => {
+    setSlots((cur) => {
+      const next = { ...cur };
+      const sa = cur[a];
+      const sb = cur[b];
+      if (sb) next[a] = sb;
+      else delete next[a];
+      if (sa) next[b] = sa;
+      else delete next[b];
+      return next;
+    });
+    setSelected(b);
+  };
+  /** 選んだコマの写真（と編集）で、全コマを埋める */
+  const fillWith = (index: number) => {
+    const src = slots[index];
+    if (!src) return;
+    Object.values(slots).forEach((s) => s !== src && s.url !== src.url && release(s));
+    setSlots(fillAll(src, cells.length));
   };
 
   const run = async (format: SheetFormat) => {
@@ -491,7 +550,9 @@ export function SheetPage() {
                     <button
                       type="button"
                       className={
-                        (slot ? 'cell filled' : 'cell') + (dropTarget === c.index ? ' drop' : '')
+                        (slot ? 'cell filled' : 'cell') +
+                        (dropTarget === c.index ? ' drop' : '') +
+                        (selected === c.index ? ' selected' : '')
                       }
                       aria-label={`コマ ${c.index + 1}${slot ? `（${slot.name}）` : '（空）'}`}
                       style={{
@@ -502,9 +563,33 @@ export function SheetPage() {
                         borderRadius: `${(c.cornerRadiusMm * 100) / W}cqw`,
                       }}
                       onClick={() => {
+                        if (slot) {
+                          select(c.index);
+                          return;
+                        }
                         slotTarget.current = c.index;
                         slotInput.current?.click();
                       }}
+                      onPointerDown={(e) => {
+                        if (!slot?.size || selected !== c.index) return;
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        drag.current = { x: e.clientX, y: e.clientY };
+                      }}
+                      onPointerMove={(e) => {
+                        const from = drag.current;
+                        if (!from || !slot?.size) return;
+                        const r = e.currentTarget.getBoundingClientRect();
+                        // 動かした量を、塗り足しを含む範囲に対する割合にする
+                        const dx = ((e.clientX - from.x) / r.width) * (c.widthMm / b.widthMm);
+                        const dy = ((e.clientY - from.y) / r.height) * (c.heightMm / b.heightMm);
+                        drag.current = { x: e.clientX, y: e.clientY };
+                        updateEdit(
+                          c.index,
+                          panEdit(slot.size, { w: b.widthMm, h: b.heightMm }, slot.edit, dx, dy),
+                        );
+                      }}
+                      onPointerUp={() => (drag.current = null)}
+                      onPointerCancel={() => (drag.current = null)}
                       onDragOver={(e) => {
                         if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
                         e.preventDefault();
@@ -529,7 +614,10 @@ export function SheetPage() {
                           left: pct(c.xMm + c.widthMm, W),
                           top: pct(c.yMm, H),
                         }}
-                        onClick={() => clearSlot(c.index)}
+                        onClick={() => {
+                          clearSlot(c.index);
+                          if (selected === c.index) select(null);
+                        }}
                       >
                         ×
                       </button>
@@ -585,11 +673,58 @@ export function SheetPage() {
         )}
       </section>
 
-      <PhotoBrowser
-        onPick={(photo) => placePhotos([photo])}
-        placed={placed}
-        full={!!paper && full}
-      />
+      <aside className="side" aria-label="写真と編集">
+        <div className="tabs small" role="tablist" aria-label="右の画面">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={side === 'photos'}
+            onClick={() => setSide('photos')}
+          >
+            写真
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={side === 'edit'}
+            onClick={() => setSide('edit')}
+          >
+            編集
+          </button>
+        </div>
+        <div className="side-pane" hidden={side !== 'photos'}>
+          <PhotoBrowser
+            onPick={(photo) => placePhotos([photo])}
+            placed={placed}
+            full={!!paper && full}
+          />
+        </div>
+        <div className="side-pane" hidden={side !== 'edit'}>
+          {selected !== null && slots[selected] ? (
+            <CellEditor
+              index={selected}
+              cellCount={cells.length}
+              name={slots[selected]!.name}
+              edit={slots[selected]!.edit}
+              filled={Object.keys(slots).map(Number)}
+              onChange={(edit) => updateEdit(selected, edit)}
+              onSwap={(other) => swapCells(selected, other)}
+              onFillAll={() => fillWith(selected)}
+              onReplaceFile={() => {
+                slotTarget.current = selected;
+                slotInput.current?.click();
+              }}
+              onClear={() => {
+                clearSlot(selected);
+                select(null);
+              }}
+              onClose={() => select(null)}
+            />
+          ) : (
+            <p className="note">編集するコマを、シートの上で押してください。</p>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }

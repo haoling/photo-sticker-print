@@ -77,12 +77,13 @@ describe('cropRect の性質', () => {
 describe('cellEditSchema / isDefaultEdit', () => {
   it('省略した項目は既定値。範囲外・知らない項目・不正な回転は拒否する', () => {
     expect(cellEditSchema.parse({})).toEqual(DEFAULT_EDIT);
+    expect(cellEditSchema.parse({ zoom: 0.5 }).zoom).toBe(0.5); // 縮小もできる
     expect(cellEditSchema.parse({ zoom: 2, rotation: 90 })).toMatchObject({
       zoom: 2,
       rotation: 90,
     });
     for (const bad of [
-      { zoom: 0.5 },
+      { zoom: 0.2 },
       { zoom: 9 },
       { focusX: 1.1 },
       { rotation: 45 },
